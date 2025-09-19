@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamFlow - ITM (SLS) Baroda University</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .draggable { touch-action: none; }
+        .draggable:active { 
+            cursor: grabbing; 
+            z-index: 50; 
+            transform: scale(1.05); 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .drop-zone-active {
+            background-color: #e0f2fe; /* light-blue-100 */
+            border-color: #3b82f6; /* blue-500 */
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+        }
+        .btn-toggle-active {
+            background-color: #c53030; /* A shade of red from the logo */
+            color: white;
+            border-color: #c53030;
+        }
+        [draggable="true"] { user-select: none; }
+        .page-break-after { page-break-after: always; }
+        .animate-modal-in {
+            animation: scaleIn 0.3s cubic-bezier(0.165, 0.840, 0.440, 1.000) forwards;
+        }
+        @keyframes scaleIn {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Mobile-specific UI changes */
+        @media (max-width: 768px) {
+            .desktop-only { display: none; }
+        }
+        @media (min-width: 769px) {
+            .mobile-only { display: none; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app-container" class="flex flex-col h-screen font-sans">
+        <!-- Header -->
+        <header class="bg-white shadow-md p-4 sticky top-0 z-20">
+            <div class="flex items-center justify-between max-w-7xl mx-auto mb-4">
+                <div class="flex items-center gap-4">
+                    <img src="site_banner.png" alt="SOCSET Exam Cell Logo" class="h-14">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">ExamFlow</h1>
+                        <p id="university-name" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
+            </div>
+            <div id="stepper-container" class="max-w-5xl mx-auto"></div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <div id="notification-container" class="fixed top-24 right-5 z-50"></div>
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg min-h-full flex flex-col max-w-7xl mx-auto">
+                <div id="step-content-container" class="flex-grow"></div>
+                <div class="mt-8 flex justify-between items-center pt-6 border-t-2 border-gray-100">
+                    <div id="prev-button-container"></div>
+                    <div id="next-button-container"></div>
+                </div>
+            </div>
+        </main>
+        <div id="modal-container"></div>
+    </div>
+
+    <script>
+        // --- ICONS ---
+        const ICONS = {
+            CheckCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`,
+            Upload: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+            ArrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`,
+            ArrowRight: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
+            Plus: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+            Trash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>`,
+            Printer: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
+            Paste: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>`,
+            X: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+            XClose: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+            Users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
+        };
+
+        // --- GLOBAL STATE & CONSTANTS ---
+        let state = {
+            currentStep: 1,
+            examDetails: {
+                session: "Summer Internal",
+                academicYear: getAcademicYear(),
+                type: 'CET 1',
+                branches: [],
+                specializations: [],
+                semesters: [],
+            },
+            examName: '',
+            subjectsMasterList: [],
+            schedule: {},
+            roomsMaster: [],
+            facultyMaster: [],
+            dutyAssignments: {},
+            allotment: {}, 
+            scheduler: {
+                searchTerm: '',
+                calendarDate: new Date(),
+                selectedDate: null,
+            },
+            facultySearchTerm: '',
+            draggedItemId: null,
+            draggedItemType: null,
+            modal: { visible: false, title: '', content: '' }
+        };
+
+        const UNIVERSITY_NAME = 'ITM (SLS) Baroda University';
+        const EXAM_TYPES = ["CET 1", "CET 2", "MST", "REMEDIAL"];
+        const BRANCHES = ["DIPLOMA", "BCA", "MCA", "BTECH"];
+        const SPECIALIZATIONS = ["CSE", "IT", "AI", "CS", "DS", "CSA"];
+        const SEMESTERS = Array.from({ length: 8 }, (_, i) => `Sem ${i + 1}`);
+        const STEPS = [
+            { number: 1, name: 'Details' }, { number: 2, name: 'Subjects' },
+            { number: 3, name: 'Scheduler' }, { number: 4, name: 'Allotment & Rooms' },
+            { number: 5, name: 'Duty Assignment' }
+        ];
+        const BRANCH_COLORS = {
+            "BTECH": "bg-blue-100 text-blue-800 border-blue-300",
+            "DIPLOMA": "bg-green-100 text-green-800 border-green-300",
+            "BCA": "bg-yellow-100 text-yellow-800 border-yellow-300",
+            "MCA": "bg-purple-100 text-purple-800 border-purple-300",
+            "DEFAULT": "bg-gray-100 text-gray-800 border-gray-300",
+        };
+
+        // --- UTILITY FUNCTIONS ---
+        function getAcademicYear() {
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const month = today.getMonth();
+            return month >= 5 ? `${currentYear}-${currentYear + 1}` : `${currentYear - 1}-${currentYear}`;
+        }
+        const $ = (selector) => document.querySelector(selector);
+        const getColorForBranch = (branch) => BRANCH_COLORS[branch?.toUpperCase()] || BRANCH_COLORS.DEFAULT;
+
+        function formatTime12Hour(timeString) {
+            if (!timeString) return '';
+            const [hourString, minute] = timeString.split(':');
+            const hour = +hourString % 24;
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minute} ${ampm}`;
+        }
+
+        function notify(message, type = 'success', duration = 3000) {
+            const container = $('#notification-container');
+            const id = `notif_${Date.now()}`;
+            const colors = { success: 'bg-green-100 border-green-500 text-green-700', error: 'bg-red-100 border-red-500 text-red-700', warning: 'bg-yellow-100 border-yellow-500 text-yellow-700' };
+            const notif = document.createElement('div');
+            notif.id = id;
+            notif.className = `p-4 mb-4 border-l-4 rounded-md shadow-lg ${colors[type]}`;
+            notif.innerHTML = `<div class="flex items-center gap-2"><p>${message}</p></div>`;
+            container.appendChild(notif);
+            setTimeout(() => { document.getElementById(id)?.remove(); }, duration);
+        }
+
+        // --- RENDER FUNCTIONS (Main Controller) ---
+        function render() {
+            renderStepper();
+            renderStepContent();
+            renderNavigationButtons();
+            renderModal();
+        }
+
+        // --- STEPPER & NAVIGATION ---
+        function renderStepper() {
+            const baseButtonClass = "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all";
+            $('#stepper-container').innerHTML = `<div class="flex items-center justify-between">${STEPS.map(step => {
+                const isCompleted = state.currentStep > step.number; 
+                const isCurrent = state.currentStep === step.number; 
+                const canClick = isCompleted; 
+                let stepClass = '';
+                if (isCurrent) stepClass = 'bg-red-600 text-white border-red-600 font-bold';
+                else if (isCompleted) stepClass = 'bg-green-500 text-white border-green-500';
+                else stepClass = 'bg-white text-gray-600 border-gray-300';
+                
+                return `${step.number > 1 ? `<div class="flex-1 h-0.5 ${isCompleted || isCurrent ? 'bg-red-500' : 'bg-gray-300'}"></div>` : ''}
+                        <div class="flex flex-col items-center text-center w-28">
+                            <button data-step="${step.number}" class="step-btn ${baseButtonClass} ${stepClass} ${canClick ? 'cursor-pointer hover:border-red-400' : 'cursor-default'}">
+                                ${isCompleted && !isCurrent ? ICONS.CheckCircle : `<span class="font-bold">${step.number}</span>`}
+                            </button>
+                            <p class="mt-2 text-xs font-semibold ${isCurrent ? 'text-red-600' : 'text-gray-500'}">${step.name}</p>
+                        </div>`
+            }).join('')}</div>`;
+        }
+        
+        function renderNavigationButtons() {
+            const baseBtn = "flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-sm transition-all";
+            $('#prev-button-container').innerHTML = state.currentStep > 1 ? `<button id="prev-step" class="${baseBtn} text-gray-700 bg-gray-200 hover:bg-gray-300">${ICONS.ArrowLeft} Previous</button>` : '';
+            $('#next-button-container').innerHTML = state.currentStep < STEPS.length ? `<button id="next-step" class="${baseBtn} text-white bg-red-600 hover:bg-red-700">${'Next'} ${ICONS.ArrowRight}</button>` : '';
+        }
+
+        // --- STEP CONTENT ROUTER ---
+        function renderStepContent() {
+            const container = $('#step-content-container');
+            let content = '';
+            switch (state.currentStep) {
+                case 1: content = renderStep1_ExamDetails(); break;
+                case 2: content = renderStep2_Subjects(); break;
+                case 3: content = renderStep3_Scheduler(); break;
+                case 4: content = renderStep4_AllotmentAndRooms(); break;
+                case 5: content = renderStep5_DutyAssignment(); break;
+            }
+            container.innerHTML = `<div>${content}</div>`;
+             if (state.currentStep === 4) {
+                document.querySelectorAll('.add-block-form [data-action="update-specializations"]').forEach(el => {
+                   handleSubjectChange(el);
+                });
+            }
+        }
+
+        // --- STEP 1: Exam Details ---
+        function renderStep1_ExamDetails() {
+            const { session, academicYear, type, branches, specializations, semesters } = state.examDetails;
+            const renderToggleButtons = (options, selected, type) => options.map(opt => `<button class="btn-toggle text-sm px-4 py-1.5 border rounded-full transition-colors ${selected.includes(opt) ? 'btn-toggle-active' : 'hover:bg-gray-100 hover:border-gray-400'}" data-type="${type}" data-value="${opt}">${opt}</button>`).join('');
+            return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Exam Configuration</h2><div class="space-y-8"><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label class="block text-sm font-medium text-gray-700">Session</label><select id="exam-session" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">${["Summer Internal", "Winter Exam"].map(s => `<option ${s === session ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div><label class="block text-sm font-medium text-gray-700">Academic Year</label><select id="exam-year" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">${[getAcademicYear(), `${parseInt(getAcademicYear().split('-')[0])+1}-${parseInt(getAcademicYear().split('-')[1])+1}`].map(y => `<option ${y === academicYear ? 'selected' : ''}>${y}</option>`).join('')}</select></div></div><div><label class="block text-sm font-medium text-gray-700">Generated Exam Name (Editable)</label><input type="text" id="exam-name" value="${state.examName}" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Exam Type*</label><div class="flex flex-wrap gap-2">${EXAM_TYPES.map(t => `<button class="btn-toggle text-sm px-4 py-1.5 border rounded-full transition-colors ${type === t ? 'btn-toggle-active' : 'hover:bg-gray-100 hover:border-gray-400'}" data-type="type" data-value="${t}">${t}</button>`).join('')}</div></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Branch</label><div class="flex flex-wrap gap-2">${renderToggleButtons(BRANCHES, branches, 'branches')}</div></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Specialization</label><div class="flex flex-wrap gap-2">${renderToggleButtons(SPECIALIZATIONS, specializations, 'specializations')}</div></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Semester</label><div class="flex flex-wrap gap-2">${renderToggleButtons(SEMESTERS, semesters, 'semesters')}</div></div></div>`;
+        }
+
+        // --- STEP 2: Subjects ---
+        function renderStep2_Subjects() {
+             return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Manage Subjects</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg mb-4 text-gray-700">Add Subjects</h3><div class="bg-gray-50 p-6 rounded-lg border space-y-4"><div class="space-y-3"><input type="text" id="subject-code" placeholder="Subject Code" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-name" placeholder="Subject Name" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-branch" placeholder="Branch (e.g., BTECH)" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-semester" placeholder="Semester (e.g., Sem 1)" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-specialization" placeholder="Specializations (comma-sep)" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><button id="add-subject-btn" class="w-full bg-red-600 text-white p-2.5 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 font-semibold">${ICONS.Plus} Add Subject Manually</button></div><div class="border-t my-4"></div><div><p class="text-sm text-gray-600">Or upload a master list. Required headers: <strong>Branch, Semester, Specialization, SubjectName, SubjectCode</strong>.</p><label for="subject-file-upload" class="w-full mt-2 cursor-pointer flex items-center justify-center gap-2 bg-white text-red-600 p-4 rounded-lg border-2 border-dashed hover:bg-red-50"><span class="font-semibold">Upload Subjects Master</span></label><input type="file" id="subject-file-upload" class="hidden" accept=".csv, .xlsx"></div></div></div><div><h3 class="font-semibold text-lg mb-4 text-gray-700">Filtered Subjects for this Exam (${getFilteredSubjects().length})</h3><div class="overflow-y-auto max-h-[65vh] p-4 bg-gray-50 rounded-lg border" id="subjects-display-container">${renderFilteredSubjectsList()}</div></div></div>`;
+        }
+        
+        function getFilteredSubjects() {
+            const { branches, semesters, specializations } = state.examDetails;
+            if (branches.length === 0 && semesters.length === 0 && specializations.length === 0) return state.subjectsMasterList;
+            return state.subjectsMasterList.filter(s => {
+                const branchMatch = branches.length === 0 || branches.includes(s.Branch?.toUpperCase());
+                const semesterMatch = semesters.length === 0 || semesters.includes(s.Semester);
+                const specMatch = specializations.length === 0 || (s.Specialization && s.Specialization.some(spec => specializations.includes(spec)));
+                return branchMatch && semesterMatch && specMatch;
+            });
+        }
+
+        function renderFilteredSubjectsList() {
+            const filteredSubjects = getFilteredSubjects();
+            if(filteredSubjects.length === 0) {
+                return `<div class="text-center text-gray-500 py-8"><p>No subjects match the filters from Step 1.</p><p class="text-sm">Please upload a subject master list or adjust your filters.</p></div>`;
+            }
+            return `<div class="space-y-2">${filteredSubjects.map(s => `<div class="p-3 rounded-md shadow-sm border ${getColorForBranch(s.Branch)}"><p class="font-semibold text-sm">${s.SubjectName}</p><p class="text-xs">${s.SubjectCode} | ${s.Branch} | ${s.Semester}</p></div>`).join('')}</div>`;
+        }
+
+        // --- STEP 3: Scheduler ---
+        function renderStep3_Scheduler() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">Exam Scheduler</h2>
+                        <p class="text-gray-500 mt-1 desktop-only">Drag & drop subjects into a time slot.</p>
+                        <p class="text-gray-500 mt-1 mobile-only">Select a date, then add exams to a phase using the 'Assign' button.</p>
+                    </div>
+                    <button id="publish-timetable-btn" class="flex items-center gap-2 text-sm bg-red-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-700 transition-colors mt-4 md:mt-0">
+                        ${ICONS.Printer}
+                        <span>View & Publish Timetable</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-4 bg-white p-4 rounded-xl border h-fit desktop-only">
+                        <div class="relative mb-4">
+                            <input type="text" id="scheduler-search" class="w-full p-3 pl-10 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-red-300 focus:border-red-300" placeholder="Search by name or code..." value="${state.scheduler.searchTerm}">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                            </div>
+                        </div>
+                        <h3 class="font-bold mb-4 px-2 text-gray-700">Unscheduled Subjects</h3>
+                        <div id="unscheduled-list" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                           ${renderUnscheduledSubjectsList()}
+                        </div>
+                    </div>
+                    <div class="lg:col-span-8 space-y-6">
+                        ${renderCalendar()}
+                        <div id="schedule-container">
+                            ${renderScheduleDay(state.scheduler.selectedDate)}
+                        </div>
+                    </div>
+                </div>`;
+        }
+        
+        function renderUnscheduledSubjectsList() {
+            const schedulableSubjects = getFilteredSubjects();
+            const searchTerm = state.scheduler.searchTerm.toLowerCase();
+            const searchedSubjects = searchTerm ? schedulableSubjects.filter(s => s.SubjectName.toLowerCase().includes(searchTerm) || s.SubjectCode.toLowerCase().includes(searchTerm)) : schedulableSubjects;
+            const scheduledSubjectIds = new Set(Object.values(state.schedule).flatMap(day => day.flatMap(phase => phase.subjects)));
+            const unscheduledSubjects = searchedSubjects.filter(s => !scheduledSubjectIds.has(s.id));
+
+            if (!unscheduledSubjects.length) return '<div class="text-center text-gray-500 py-10"><p>All subjects are scheduled!</p></div>';
+            
+            return unscheduledSubjects.map(s => `
+                <div id="subject-${s.id}" class="draggable flex items-start gap-3 p-3 rounded-lg shadow-sm border ${getColorForBranch(s.Branch)} cursor-grab transition-shadow hover:shadow-md" draggable="true" data-id="${s.id}" data-type="subject">
+                    <div class="flex-shrink-0 mt-1 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+                    </div>
+                    <div class="flex-grow">
+                        <p class="font-semibold text-sm leading-tight">${s.SubjectName}</p>
+                        <p class="text-xs text-gray-600 mt-1">${s.SubjectCode} | ${s.Branch} | ${s.Semester}</p>
+                        <p class="text-xs text-gray-500">${(s.Specialization || []).join(', ')}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+
+        function renderCalendar() {
+            const calDate = state.scheduler.calendarDate;
+            const month = calDate.getMonth();
+            const year = calDate.getFullYear();
+            const firstDayOfMonth = new Date(year, month, 1);
+            const firstDayOfWeek = firstDayOfMonth.getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            let dayCells = '';
+
+            for (let i = 0; i < firstDayOfWeek; i++) { dayCells += `<div></div>`; }
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const isScheduled = !!state.schedule[dateString] && state.schedule[dateString].length > 0;
+                const isSelected = state.scheduler.selectedDate === dateString;
+                
+                dayCells += `
+                    <div class="relative flex justify-center">
+                        <button data-date="${dateString}" class="calendar-day w-10 h-10 rounded-full transition-colors flex items-center justify-center
+                            ${isSelected ? 'bg-red-600 text-white font-bold' : 'hover:bg-gray-100'}">
+                            ${i}
+                        </button>
+                        ${isScheduled ? `<div class="absolute bottom-1 w-1.5 h-1.5 bg-green-500 rounded-full"></div>` : ''}
+                    </div>`;
+            }
+
+            return `
+                <div class="bg-white p-4 rounded-xl border">
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="cal-prev" class="p-2 rounded-full hover:bg-gray-100 transition-colors">${ICONS.ArrowLeft}</button>
+                        <div class="font-bold text-lg text-gray-800">${calDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</div>
+                        <button id="cal-next" class="p-2 rounded-full hover:bg-gray-100 transition-colors">${ICONS.ArrowRight}</button>
+                    </div>
+                    <div class="grid grid-cols-7 gap-y-2 text-center text-sm">
+                        ${days.map(d => `<div class="font-semibold text-gray-500 py-2">${d}</div>`).join('')}
+                        ${dayCells}
+                    </div>
+                     <div class="text-xs text-gray-500 mt-2 flex items-center justify-center gap-4">
+                        <span class="flex items-center gap-1.5"><div class="w-2 h-2 bg-green-500 rounded-full"></div>Scheduled</span>
+                    </div>
+                </div>`;
+        }
+
+        function renderScheduleDay(date) {
+            if (!date) return `
+                <div class="text-center text-gray-500 p-12 border-2 border-dashed rounded-xl bg-gray-50 flex flex-col items-center justify-center h-full">
+                    <svg class="w-12 h-12 text-gray-400 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <h3 class="font-semibold text-lg">No date selected</h3>
+                    <p>Please select a date from the calendar to add exam phases.</p>
+                </div>`;
+
+            if (!state.schedule[date]) state.schedule[date] = [];
+
+            const sortedDatesWithContent = Object.keys(state.schedule).sort().filter(d => state.schedule[d]?.length > 0 && d < date);
+            const prevDate = sortedDatesWithContent.length > 0 ? sortedDatesWithContent[sortedDatesWithContent.length - 1] : null;
+
+            return `
+                <div class="bg-white p-5 rounded-xl border">
+                    <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 pb-4 border-b">
+                        <div>
+                            <h3 class="font-bold text-xl text-gray-800">${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+                        </div>
+                        <div class="flex items-center gap-2 mt-3 md:mt-0">
+                            ${prevDate ? `<button data-date="${date}" class="copy-phases-btn text-xs font-semibold text-red-600 hover:underline">Copy from Previous</button>` : ''}
+                            <button data-date="${date}" class="add-phase-btn text-sm bg-red-100 text-red-700 hover:bg-red-200 font-semibold p-2 rounded-lg flex items-center gap-2 transition-colors">${ICONS.Plus} Add Phase</button>
+                            <button data-date="${date}" class="remove-date-btn text-gray-400 hover:text-red-500 p-2 rounded-lg transition-colors">${ICONS.Trash}</button>
+                        </div>
+                    </div>
+                    <div id="phases-container" class="space-y-4">
+                        ${state.schedule[date].length > 0 ? state.schedule[date].map(phase => renderPhaseBlock(date, phase.id)).join('') : `
+                            <div class="text-center text-gray-400 py-10">
+                                <p>No exam phases for this day.</p>
+                                <p class="text-sm">Click 'Add Phase' to get started.</p>
+                            </div>
+                        `}
+                    </div>
+                </div>`;
+        }
+
+        function renderPhaseBlock(date, phaseId) {
+            const phase = state.schedule[date].find(p => p.id === phaseId);
+            if (!phase) return '';
+            return `
+                <div class="bg-gray-50/70 p-4 rounded-lg border border-gray-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-lg font-bold text-gray-800 bg-transparent rounded-md px-2 py-1">${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}</span>
+                        </div>
+                         <div class="flex items-center gap-2">
+                             <button class="mobile-only assign-subject-btn text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold p-2 rounded-md flex items-center gap-1" data-date="${date}" data-phase-id="${phaseId}">
+                                Assign Subjects
+                            </button>
+                            <button data-date="${date}" data-phase-id="${phaseId}" class="remove-phase-btn text-gray-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-100 transition-colors">${ICONS.Trash}</button>
+                        </div>
+                    </div>
+                    <div class="drop-zone min-h-[80px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-date="${date}" data-phase-id="${phaseId}" data-type="subject">
+                        ${phase.subjects.length > 0 ? `
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                ${phase.subjects.map(id => {
+                                    const s = state.subjectsMasterList.find(sub => sub.id === id);
+                                    return s ? `
+                                        <div class="flex items-center justify-between p-2 rounded-md text-xs ${getColorForBranch(s.Branch)} shadow-sm">
+                                            <span class="font-semibold">${s.SubjectName} (${s.SubjectCode})</span>
+                                            <button class="remove-subject-from-phase-btn ml-2 text-gray-500 hover:text-red-700" data-date="${date}" data-phase-id="${phaseId}" data-subject-id="${s.id}">${ICONS.X}</button>
+                                        </div>` : '';
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <div class="text-center text-gray-400 flex items-center justify-center h-full py-5 pointer-events-none desktop-only">
+                                <svg class="w-6 h-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338A2.25 2.25 0 0017.088 3.75H15M4.5 13.5h15M7.5 3.75v3.75m9-3.75v3.75" /></svg>
+                                <span>Drop subjects here</span>
+                            </div>
+                             <div class="text-center text-gray-400 h-full py-5 pointer-events-none mobile-only">
+                                <p>No subjects assigned.</p>
+                            </div>
+                        `}
+                    </div>
+                </div>`;
+        }
+        
+        // --- STEP 4: Allotment & Rooms ---
+        function renderStep4_AllotmentAndRooms() {
+            let allotmentHtml = '';
+            const sortedDates = Object.keys(state.schedule).sort();
+            const phaseKeysWithBlocks = Object.keys(state.allotment).filter(key => state.allotment[key].length > 0).sort();
+
+            for (const date of sortedDates) {
+                if (!state.schedule[date] || state.schedule[date].length === 0) continue;
+
+                for (const phase of state.schedule[date]) {
+                    const phaseKey = `${date}|${phase.id}`;
+                    if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
+                    const subjectsInPhase = phase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+                    
+                    const lastSessionKey = phaseKeysWithBlocks.filter(k => k !== phaseKey).pop();
+
+                    allotmentHtml += `
+                        <div class="bg-gray-50 p-5 rounded-xl border mb-6">
+                            <div class="flex flex-col md:flex-row justify-between md:items-start mb-4 pb-4 border-b">
+                                <div>
+                                    <h3 class="font-bold text-lg">${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                                    <p class="text-sm text-red-700 font-semibold">${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}</p>
+                                </div>
+                                <div class="flex items-center gap-4 mt-3 md:mt-0">
+                                    ${lastSessionKey ? `<button class="paste-blocks-btn text-sm font-semibold text-red-600 hover:underline flex items-center gap-1" data-target-key="${phaseKey}" data-source-key="${lastSessionKey}">${ICONS.Paste} Repeat Last Seating Plan</button>` : ''}
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-lg border mb-4">
+                                <h4 class="font-semibold mb-3 text-gray-700">Add a New Block</h4>
+                                ${subjectsInPhase.length > 0 && state.roomsMaster.length > 0 ? `
+                                <form class="add-block-form grid grid-cols-1 md:grid-cols-12 gap-3 items-end" data-phase-key="${phaseKey}">
+                                    <div class="md:col-span-3">
+                                        <label class="text-xs font-medium text-gray-600">Subject</label>
+                                        <select name="subjectId" data-action="update-specializations" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                            <option value="">-- Select Subject --</option>
+                                            ${subjectsInPhase.map(s => `<option value="${s.id}">${s.SubjectName} (${s.Branch} - ${s.Semester})</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="specialization-container md:col-span-2"></div>
+                                    <div class="md:col-span-2">
+                                        <label class="text-xs font-medium text-gray-600">Block No.</label>
+                                        <input type="text" name="blockNo" required placeholder="e.g., 1 or EB-1" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="text-xs font-medium text-gray-600">Room</label>
+                                        <select name="roomName" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                            ${state.roomsMaster.map(r => `<option value="${r.name}">${r.name}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                     <div class="md:col-span-2">
+                                        <label class="text-xs font-medium text-gray-600">Seat Range</label>
+                                        <input type="text" name="seatRange" required placeholder="e.g., A1-A20" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                    </div>
+                                    <button type="submit" class="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 h-fit text-sm md:col-span-1">Add</button>
+                                </form>
+                                ` : `<p class="text-sm text-center text-gray-500">${state.roomsMaster.length === 0 ? 'Please add rooms below before creating blocks.' : 'No subjects scheduled in this phase.'}</p>`}
+                            </div>
+
+                            <div class="allotment-blocks-container">
+                                ${renderAllotmentBlocksForPhase(phaseKey)}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if (!allotmentHtml) {
+                allotmentHtml = '<div class="text-center text-gray-500 py-10"><p>No exams scheduled in Step 3.</p><p class="text-sm">Complete the schedule to create seating blocks.</p></div>';
+            }
+            
+            const totalCapacity = state.roomsMaster.reduce((sum, room) => sum + parseInt(room.capacity || 0), 0);
+
+            return `
+                <div>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-800">Allotment & Rooms</h2>
+                            <p class="text-gray-500 mt-1">Manage rooms and create seating blocks for each exam session.</p>
+                        </div>
+                        <button id="download-seating-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm mt-4 md:mt-0">Download Seating PDF</button>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div class="lg:col-span-4">
+                             <div class="bg-white p-6 rounded-xl border sticky top-24">
+                                <h3 class="font-bold text-lg mb-4">Manage Rooms</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg border space-y-4">
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <input type="text" id="room-name" placeholder="Room Name/No." class="col-span-2 p-2 border rounded-md">
+                                        <input type="number" id="room-capacity" placeholder="Capacity" class="p-2 border rounded-md">
+                                    </div>
+                                    <button id="add-room-btn" class="w-full bg-red-600 text-white p-2 rounded-md hover:bg-red-700 flex items-center justify-center gap-2">${ICONS.Plus} Add Room</button>
+                                </div>
+                                <div class="border-t my-4"></div>
+                                <div>
+                                    <p class="text-sm text-center text-gray-600">Or upload rooms. Headers: <strong>RoomNumber, Capacity</strong>.</p>
+                                    <label for="room-file-upload" class="w-full mt-2 cursor-pointer flex items-center justify-center gap-2 bg-white text-red-600 p-3 rounded-md border-2 border-dashed hover:bg-red-50">
+                                        ${ICONS.Upload} <span class="font-semibold text-sm">Upload Rooms</span>
+                                    </label>
+                                    <input type="file" id="room-file-upload" class="hidden" accept=".csv, .xlsx">
+                                </div>
+                                <div class="mt-6">
+                                    <h4 class="font-bold mb-2">Available Rooms (${state.roomsMaster.length}) <span class="font-normal text-sm text-gray-500">- Cap: ${totalCapacity}</span></h4>
+                                    <div id="rooms-list" class="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
+                                        ${state.roomsMaster.map(room => `
+                                            <div class="flex justify-between items-center bg-gray-50 p-2 rounded-md border">
+                                                <span class="font-semibold text-sm">${room.name}</span>
+                                                <div class="flex items-center gap-3">
+                                                    <span class="text-xs text-gray-600 bg-white px-2 py-1 rounded-full border">Cap: ${room.capacity}</span>
+                                                    <button data-room-id="${room.id}" class="remove-room-btn text-gray-400 hover:text-red-600">${ICONS.Trash}</button>
+                                                </div>
+                                            </div>
+                                        `).join('') || '<p class="text-sm text-center text-gray-500 py-4">No rooms added yet.</p>'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-8">
+                            ${allotmentHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderAllotmentBlocksForPhase(phaseKey) {
+            const blocks = state.allotment[phaseKey] || [];
+            if (blocks.length === 0) {
+                return '<p class="text-center text-sm text-gray-500 py-6">No blocks created for this session yet.</p>';
+            }
+             blocks.sort((a, b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
+
+            return `
+                <table class="w-full text-sm mt-4">
+                    <thead class="text-left bg-gray-100">
+                        <tr>
+                            <th class="p-2 font-semibold">Block No.</th>
+                            <th class="p-2 font-semibold">Room</th>
+                            <th class="p-2 font-semibold">Subject</th>
+                            <th class="p-2 font-semibold">Seat Range</th>
+                            <th class="p-2 font-semibold"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${blocks.map(block => {
+                            const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                            let subjectText = 'N/A';
+                            if (subject) {
+                                subjectText = `${subject.SubjectName} (${subject.Branch})`;
+                                if (block.specialization) {
+                                    subjectText += ` - ${block.specialization}`;
+                                }
+                            }
+                            return `
+                                <tr class="border-t">
+                                    <td class="p-2 font-semibold">${block.blockNo}</td>
+                                    <td class="p-2">${block.roomName}</td>
+                                    <td class="p-2">${subjectText}</td>
+                                    <td class="p-2 font-mono">${block.seatRange}</td>
+                                    <td class="p-2 text-right">
+                                        <button class="remove-block-btn text-gray-400 hover:text-red-600" data-phase-key="${phaseKey}" data-block-id="${block.id}">${ICONS.Trash}</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        // --- STEP 5: Duty Assignment (New Drag & Drop UI) ---
+        function getFacultyDutyCount() {
+            const counts = {};
+            state.facultyMaster.forEach(f => counts[f.name] = 0);
+            Object.values(state.dutyAssignments).forEach(phase => {
+                Object.values(phase).forEach(roomFaculty => {
+                    roomFaculty.forEach(name => {
+                        if (counts[name] !== undefined) {
+                            counts[name]++;
+                        }
+                    });
+                });
+            });
+            return counts;
+        }
+
+        function renderStep5_DutyAssignment() {
+            let assignmentHtml = '';
+            const sortedDates = Object.keys(state.schedule).sort();
+
+            for (const date of sortedDates) {
+                if (!state.schedule[date] || state.schedule[date].length === 0) continue;
+                
+                for (const phase of state.schedule[date]) {
+                    const phaseKey = `${date}|${phase.id}`;
+                    
+                    assignmentHtml += `
+                        <div class="bg-gray-50 p-5 rounded-xl border mb-6">
+                            <h3 class="font-bold text-lg mb-2">${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                            <p class="text-sm text-red-700 font-semibold mb-4">${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}</p>
+                            
+                            <div class="space-y-4">
+                                ${renderDutyRoomsForPhase(phaseKey)}
+                            </div>
+                        </div>`;
+                }
+            }
+            if (!assignmentHtml) {
+                 assignmentHtml = '<div class="text-center text-gray-500 py-10"><p>No exams scheduled or blocks allotted.</p><p class="text-sm">Complete previous steps to assign duties.</p></div>';
+            }
+
+            return `
+                <div>
+                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-800">Faculty Duty Assignment</h2>
+                            <p class="text-gray-500 mt-1 desktop-only">Drag & drop faculty into rooms. Mobile users, use the 'Assign' button.</p>
+                             <p class="text-gray-500 mt-1 mobile-only">Tap 'Assign Faculty' on a room to add invigilators.</p>
+                        </div>
+                        <div class="flex items-center gap-3 mt-4 md:mt-0">
+                            <button id="view-load-matrix-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center gap-2 text-sm">
+                                ${ICONS.Users}<span>View Load Matrix</span>
+                            </button>
+                            <button id="preview-duty-pdf" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm">
+                                Preview Duty Sheet
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div class="lg:col-span-4">
+                             <div class="bg-white p-6 rounded-xl border sticky top-24">
+                                <h3 class="font-bold text-lg mb-4">Manage Faculty</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg border space-y-3">
+                                    <input type="text" id="faculty-name" placeholder="Faculty Name" class="w-full p-2 border rounded-md">
+                                    <button id="add-faculty-btn" class="w-full bg-red-600 text-white p-2 rounded-md hover:bg-red-700 flex items-center justify-center gap-2">${ICONS.Plus} Add Faculty</button>
+                                </div>
+                                <div class="border-t my-4"></div>
+                                <div>
+                                    <p class="text-sm text-center text-gray-600">Upload master file. It will read the 'Name of Faculty' column.</p>
+                                    <label for="faculty-file-upload" class="w-full mt-2 cursor-pointer flex items-center justify-center gap-2 bg-white text-red-600 p-3 rounded-md border-2 border-dashed hover:bg-red-50">
+                                        ${ICONS.Upload} <span class="font-semibold text-sm">Upload Faculty</span>
+                                    </label>
+                                    <input type="file" id="faculty-file-upload" class="hidden" accept=".csv, .xlsx">
+                                </div>
+                                <div class="mt-6">
+                                    <h4 class="font-bold mb-2">Faculty List</h4>
+                                    <input type="text" id="faculty-search" value="${state.facultySearchTerm}" placeholder="Search faculty..." class="w-full p-2 border rounded-md mb-3">
+                                    <div id="faculty-list" class="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
+                                        ${renderFacultyList()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-8">
+                            ${assignmentHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFacultyList() {
+            const dutyCounts = getFacultyDutyCount();
+            const searchTerm = state.facultySearchTerm.toLowerCase();
+            const filteredFaculty = state.facultyMaster.filter(f => f.name.toLowerCase().includes(searchTerm));
+            
+            if(filteredFaculty.length === 0) return '<p class="text-sm text-center text-gray-500 py-4">No faculty found.</p>';
+
+            return filteredFaculty.map(fac => `
+                <div class="draggable flex justify-between items-center bg-gray-50 p-2 rounded-md border cursor-grab" draggable="true" data-id="${fac.id}" data-type="faculty">
+                    <button class="font-semibold text-sm text-left hover:underline faculty-duty-matrix-btn" data-faculty-name="${fac.name}">${fac.name}</button>
+                    <div class="flex items-center gap-3">
+                         <span class="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-1 rounded-full" title="Total duties assigned">
+                            ${dutyCounts[fac.name] || 0}
+                         </span>
+                        <button data-faculty-id="${fac.id}" class="remove-faculty-btn text-gray-400 hover:text-red-600">${ICONS.Trash}</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDutyRoomsForPhase(phaseKey) {
+            const blocks = state.allotment[phaseKey] || [];
+            
+            const roomsInPhase = [...new Set(blocks.map(b => b.roomName))];
+             const sortedRoomsMeta = roomsInPhase.map(roomName => {
+                const firstBlock = blocks.find(b => b.roomName === roomName);
+                return { roomName, blockNo: firstBlock.blockNo };
+            }).sort((a, b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
+
+
+            if (roomsInPhase.length === 0) return '<p class="text-sm text-gray-500">No rooms have assigned blocks for this session.</p>';
+            
+            return sortedRoomsMeta.map(({ roomName }) => {
+                const assignedFaculty = state.dutyAssignments[phaseKey]?.[roomName] || [];
+                
+                return `
+                    <div class="bg-white p-4 rounded-lg border">
+                        <div class="flex justify-between items-start">
+                            <h4 class="font-bold text-gray-800">${roomName}</h4>
+                            <button class="mobile-only assign-faculty-btn text-sm bg-red-100 text-red-700 hover:bg-red-200 font-semibold p-2 rounded-lg flex items-center gap-2 transition-colors" data-phase-key="${phaseKey}" data-room="${roomName}">
+                                Assign Faculty
+                            </button>
+                        </div>
+                        <div class="drop-zone mt-2 min-h-[60px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-phase-key="${phaseKey}" data-room="${roomName}" data-type="faculty">
+                             ${assignedFaculty.length > 0 ? `
+                                <div class="flex flex-wrap gap-2">
+                                     ${assignedFaculty.map(name => `
+                                        <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            ${name}
+                                            <button class="remove-duty-btn" data-phase-key="${phaseKey}" data-room="${roomName}" data-name="${name}">${ICONS.X}</button>
+                                        </span>`).join('')}
+                                </div>
+                             ` : `
+                                <div class="text-center text-gray-400 flex items-center justify-center h-full py-5 pointer-events-none desktop-only">
+                                    <svg class="w-6 h-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+                                    <span>Drop faculty here to assign duty</span>
+                                </div>
+                                 <div class="text-center text-gray-400 h-full py-5 pointer-events-none mobile-only">
+                                    <p>No faculty assigned.</p>
+                                </div>
+                             `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- ACTION FUNCTIONS ---
+        function updateExamName() { state.examName = `${state.examDetails.session} - ${state.examDetails.academicYear}`; }
+        function addSubjectManually() {
+            const code = $('#subject-code').value.trim();
+            const name = $('#subject-name').value.trim();
+            const branch = $('#subject-branch').value.trim().toUpperCase();
+            const semester = $('#subject-semester').value.trim();
+            const specializations = $('#subject-specialization').value.split(',').map(s => s.trim().toUpperCase());
+            if(code && name && branch && semester) {
+                state.subjectsMasterList.push({ id: Date.now(), SubjectCode: code, SubjectName: name, Branch: branch, Semester: semester, Specialization: specializations });
+                notify('Subject added to master list.');
+                render();
+            } else {
+                notify('Please fill all required fields for manual entry.', 'error');
+            }
+        }
+        function addExamDate(date) {
+            if (date) {
+                 if (!state.schedule[date]) { state.schedule[date] = []; }
+            }
+            state.scheduler.selectedDate = date;
+            render();
+        }
+        function removeExamDate(date) {
+            delete state.schedule[date];
+            if (state.scheduler.selectedDate === date) {
+                state.scheduler.selectedDate = null;
+            }
+            render();
+        }
+        function removePhase(date, phaseId) {
+            state.schedule[date] = state.schedule[date].filter(p => p.id !== phaseId);
+            render();
+        }
+        function addRoom() {
+            const nameInput = $('#room-name');
+            const capacityInput = $('#room-capacity');
+            const name = nameInput.value.trim();
+            const capacity = parseInt(capacityInput.value);
+            if (name && capacity > 0) {
+                state.roomsMaster.push({ id: `room_${Date.now()}`, name, capacity });
+                nameInput.value = '';
+                capacityInput.value = '';
+                notify('Room added successfully.', 'success');
+                render();
+            } else {
+                notify('Please enter a valid room name and capacity.', 'error');
+            }
+        }
+        function removeRoom(roomId) {
+            state.roomsMaster = state.roomsMaster.filter(r => r.id !== roomId);
+            render();
+        }
+        function addFaculty() {
+             const nameInput = $('#faculty-name');
+             const name = nameInput.value.trim();
+             if (name) {
+                state.facultyMaster.push({ id: `fac_${Date.now()}_${Math.random()}`, name });
+                nameInput.value = '';
+                notify('Faculty added successfully.', 'success');
+                render();
+             } else {
+                notify('Please enter a faculty name.', 'error');
+             }
+        }
+        function removeFaculty(facultyId) {
+             const facultyToRemove = state.facultyMaster.find(f => f.id == facultyId);
+             if (!facultyToRemove) return;
+             state.facultyMaster = state.facultyMaster.filter(f => f.id != facultyId);
+             Object.keys(state.dutyAssignments).forEach(phaseKey => {
+                Object.keys(state.dutyAssignments[phaseKey]).forEach(room => {
+                    state.dutyAssignments[phaseKey][room] = state.dutyAssignments[phaseKey][room].filter(name => name !== facultyToRemove.name);
+                });
+             });
+             render();
+        }
+        function handleAddBlock(form, phaseKey) {
+            const formData = new FormData(form);
+            const block = {
+                id: `block_${Date.now()}`,
+                subjectId: formData.get('subjectId'),
+                specialization: formData.get('specialization') || null,
+                roomName: formData.get('roomName'),
+                seatRange: formData.get('seatRange'),
+                blockNo: formData.get('blockNo'),
+            };
+            if(block.subjectId && block.roomName && block.seatRange && block.blockNo) {
+                if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
+                state.allotment[phaseKey].push(block);
+                form.reset();
+                render();
+            } else {
+                notify('Please fill all fields to add a block.', 'error');
+            }
+        }
+        function handleRemoveBlock(phaseKey, blockId) {
+            if(state.allotment[phaseKey]) {
+                state.allotment[phaseKey] = state.allotment[phaseKey].filter(b => b.id !== blockId);
+                render();
+            }
+        }
+        function copyPhases(date) {
+            const sortedDatesWithContent = Object.keys(state.schedule).sort().filter(d => state.schedule[d]?.length > 0 && d < date);
+            const prevDate = sortedDatesWithContent.length > 0 ? sortedDatesWithContent[sortedDatesWithContent.length - 1] : null;
+            if (prevDate) {
+                 if (!state.schedule[date]) {
+                    state.schedule[date] = [];
+                 }
+                const phasesToCopy = JSON.parse(JSON.stringify(state.schedule[prevDate]));
+                state.schedule[date] = phasesToCopy.map(p => ({ ...p, id: `phase_${Date.now()}_${Math.random()}`, subjects: [] }));
+                notify(`Copied ${phasesToCopy.length} phase(s) from ${prevDate}.`, 'success');
+                render();
+            } else {
+                notify('No previous day with phases to copy from.', 'error');
+            }
+        }
+        async function handleFileUpload(file, type) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = e.target.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                try {
+                    if (type === 'subject') {
+                         const header = json[0];
+                         const dataRows = json.slice(1);
+                         const newSubs = dataRows.map(row => {
+                            let obj = {};
+                            header.forEach((h, i) => obj[h] = row[i]);
+                            return obj;
+                         }).map(r => ({
+                            id: Date.now() + Math.random(),
+                            SubjectCode: r.SubjectCode, SubjectName: r.SubjectName, Branch: r.Branch,
+                            Semester: `Sem ${r.Semester}`, Specialization: r.Specialization ? String(r.Specialization).split(',').map(s => s.trim().toUpperCase()) : []
+                        })).filter(s => s.SubjectCode && s.SubjectName);
+                        state.subjectsMasterList = newSubs;
+                        notify(`${newSubs.length} subjects loaded from master list.`);
+                    } else if (type === 'room') {
+                        const header = json[0];
+                         const dataRows = json.slice(1);
+                        const newRooms = dataRows.map(row => {
+                            let obj = {};
+                            header.forEach((h, i) => obj[h] = row[i]);
+                            return obj;
+                         }).map(r => ({
+                            id: `room_${Date.now()}_${Math.random()}`,
+                            name: r.RoomNumber,
+                            capacity: parseInt(r.Capacity)
+                        })).filter(room => room.name && room.capacity > 0);
+                        state.roomsMaster = newRooms;
+                        notify(`${newRooms.length} rooms loaded from file.`, 'success');
+                    } else if (type === 'faculty') {
+                        const headerRow = json[0];
+                        const nameIndex = headerRow.findIndex(h => h && h.toLowerCase().includes('name of faculty'));
+                        if (nameIndex === -1) {
+                            notify("Could not find 'Name of Faculty' column in the uploaded file.", 'error');
+                            return;
+                        }
+                        const newFaculty = json.slice(1)
+                            .map(row => row[nameIndex])
+                            .filter(name => typeof name === 'string' && name.trim().length > 2)
+                            .map(name => ({
+                                id: `fac_${Date.now()}_${Math.random()}`,
+                                name: name.trim()
+                            }));
+                        state.facultyMaster = newFaculty;
+                        notify(`${newFaculty.length} faculty loaded from file.`, 'success');
+                    }
+                    render();
+                } catch(err) { notify('Error processing file. Check format and headers.', 'error'); console.error(err); }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        // --- PDF & Modal & DYNAMIC HELPERS ---
+        function generateTimetableHTML() {
+            const allExams = [];
+            for (const date in state.schedule) {
+                for (const phase of state.schedule[date]) {
+                    for (const subjectId of phase.subjects) {
+                        const subject = state.subjectsMasterList.find(s => s.id === subjectId);
+                        if (subject) {
+                            const examData = { date, time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, code: subject.SubjectCode, name: subject.SubjectName, };
+                            if (subject.Specialization && subject.Specialization.length > 0) {
+                                subject.Specialization.forEach(spec => { allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }); });
+                            } else {
+                                allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (allExams.length === 0) { return '<p class="text-center py-8">No exams have been scheduled yet.</p>'; }
+            const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) { acc[exam.group] = []; } acc[exam.group].push(exam); return acc; }, {});
+            for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
+            const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
+            let html = `<div id="timetable-to-print" class="p-8 bg-white"><div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p><h2 class="text-2xl font-bold text-red-700 mt-4">${state.examDetails.type} TIME-TABLE</h2></div>`;
+            const sortedGroups = Object.keys(examsByGroup).sort();
+            for (const groupName of sortedGroups) {
+                html += `<div class="mb-8 page-break-after"><h3 class="text-xl font-bold text-gray-800 mb-3 p-2 bg-gray-100 rounded-md">${groupName}</h3><table class="w-full border-collapse text-sm"><thead><tr class="bg-gray-200"><th class="border p-3 text-left w-1/3">DATE & TIME</th><th class="border p-3 text-left w-1/4">COURSE CODE</th><th class="border p-3 text-left">COURSE NAME</th></tr></thead><tbody>`;
+                examsByGroup[groupName].forEach(exam => {
+                    const formattedDate = new Date(exam.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    html += `<tr><td class="border p-3 align-top"><span class="font-semibold">${formattedDate}</span><br><span class="text-gray-600">${exam.time}</span></td><td class="border p-3 align-top font-mono">${exam.code}</td><td class="border p-3 align-top">${exam.name}</td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+            }
+            html += `</div>`;
+            return html;
+        }
+
+        async function generateTimetablePDF() {
+            notify('Generating PDF, please wait...', 'success');
+            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+
+            const allExams = [];
+            for (const date in state.schedule) {
+                for (const phase of state.schedule[date]) {
+                    for (const subjectId of phase.subjects) {
+                        const subject = state.subjectsMasterList.find(s => s.id === subjectId);
+                        if (subject) {
+                             const examData = { date, time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, code: subject.SubjectCode, name: subject.SubjectName };
+                            if (subject.Specialization && subject.Specialization.length > 0) {
+                                subject.Specialization.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
+                            } else {
+                                allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                            }
+                        }
+                    }
+                }
+            }
+            if (allExams.length === 0) { notify('No exams scheduled to generate a PDF.', 'error'); return; }
+            const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) acc[exam.group] = []; acc[exam.group].push(exam); return acc; }, {});
+             for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const examsByCourse = Object.keys(examsByGroup).reduce((acc, groupName) => { const course = groupName.split(' ')[0]; if (!acc[course]) acc[course] = {}; acc[course][groupName] = examsByGroup[groupName]; return acc; }, {});
+            let isFirstPage = true;
+            const sortedCourses = Object.keys(examsByCourse).sort();
+            for (const courseName of sortedCourses) {
+                if (!isFirstPage) doc.addPage();
+                
+                if (logoDataURL) {
+                    doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+                }
+
+                doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.text(UNIVERSITY_NAME, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY', doc.internal.pageSize.getWidth() / 2, 27, { align: 'center' });
+                const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
+                doc.text(`${academicSession} SEMESTER ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
+                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(197, 48, 48); doc.text(`${state.examDetails.type} TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' }); doc.setTextColor(0, 0, 0);
+                
+                let startY = 50;
+                const specializationGroups = examsByCourse[courseName];
+                const sortedGroups = Object.keys(specializationGroups).sort();
+                for (const groupName of sortedGroups) {
+                    const tableHeight = (specializationGroups[groupName].length + 1) * 8 + 15;
+                    if (startY + tableHeight > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); startY = 20; }
+                    const tableData = specializationGroups[groupName].map(exam => { const formattedDate = new Date(exam.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); return [`${formattedDate}\n${exam.time}`, exam.code, exam.name]; });
+                    doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text(groupName, 14, startY);
+                    doc.autoTable({ startY: startY + 6, head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME']], body: tableData, theme: 'grid', headStyles: { fillColor: [229, 231, 235], textColor: [17, 24, 39], fontStyle: 'bold' }, styles: { cellPadding: 2.5, fontSize: 9 }, columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 40 } } });
+                    startY = doc.autoTable.previous.finalY + 15;
+                }
+                isFirstPage = false;
+            }
+            doc.save(`${state.examName}_Timetable.pdf`);
+        }
+        
+        async function imageToBase64(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error(`Failed to fetch image: ${url}, Status: ${response.status}`);
+                    return null;
+                };
+                const blob = await response.blob();
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (error) {
+                console.error("Error converting image to base64:", error);
+                return null;
+            }
+        }
+
+        async function generateSeatingArrangementPDF() {
+            if (Object.values(state.allotment).every(arr => arr.length === 0)) {
+                notify('No allotments created. Please create blocks first.', 'error');
+                return;
+            }
+            notify('Generating Seating Arrangement PDF...', 'success');
+
+            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const sortedPhaseKeys = Object.keys(state.allotment).sort();
+            let isFirstPageOfDocument = true;
+
+            for (const phaseKey of sortedPhaseKeys) {
+                const [date, phaseId] = phaseKey.split('|');
+                const phase = state.schedule[date]?.find(p => p.id === phaseId);
+                const blocksInPhase = state.allotment[phaseKey];
+                if (!phase || !blocksInPhase || blocksInPhase.length === 0) continue;
+
+                if (!isFirstPageOfDocument) {
+                    doc.addPage();
+                }
+                isFirstPageOfDocument = false;
+                
+                if (logoDataURL) {
+                    doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+                }
+                doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
+                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY', doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
+                
+                doc.setLineWidth(0.5);
+                doc.line(14, 32, doc.internal.pageSize.getWidth() - 14, 32);
+
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${state.examDetails.type} - Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.text(`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`, 14, 48);
+                doc.text(`Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`, doc.internal.pageSize.getWidth() - 14, 48, { align: 'right' });
+
+                const blocksByCourse = blocksInPhase.reduce((acc, block) => {
+                    const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                    const courseName = subject ? subject.Branch : 'Uncategorized';
+                    if (!acc[courseName]) acc[courseName] = [];
+                    acc[courseName].push(block);
+                    return acc;
+                }, {});
+
+                let startY = 55;
+                const sortedCourses = Object.keys(blocksByCourse).sort();
+
+                for (const courseName of sortedCourses) {
+                     const blocksInCourse = blocksByCourse[courseName].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
+                     
+                     const body = blocksInCourse.map(block => {
+                        const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                        let subjectInfo = 'Unknown Subject';
+                         if (subject) {
+                            subjectInfo = `${subject.SubjectName} (${subject.Semester})`;
+                            if (block.specialization) {
+                                subjectInfo += ` - ${block.specialization}`;
+                            }
+                        }
+                        return [block.blockNo, block.roomName, subjectInfo, block.seatRange];
+                     });
+
+                    const tableHeight = (body.length + 2) * 8;
+                    if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
+                        doc.addPage();
+                        startY = 15;
+                    } else if (startY > 55) {
+                        startY += 5;
+                    }
+
+                    doc.autoTable({
+                        startY: startY,
+                        head: [[{ content: `COURSE: ${courseName}`, colSpan: 4, styles: { fillColor: [55, 65, 81], textColor: [255,255,255], fontStyle: 'bold' } }]],
+                        body: [
+                            ['BLOCK NO.', 'ROOM NO.', 'SUBJECT', 'SEAT NUMBER'],
+                            ...body
+                        ],
+                        theme: 'grid',
+                        didParseCell: function(data) {
+                            if (data.section === 'body' && data.row.index === 0) {
+                                data.cell.styles.fillColor = '#F3F4F6';
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        },
+                        styles: { cellPadding: 2, fontSize: 9 },
+                        columnStyles: {
+                            0: { cellWidth: 20 },
+                            1: { cellWidth: 25 },
+                            3: { cellWidth: 45 }
+                        }
+                    });
+                     startY = doc.autoTable.previous.finalY;
+                }
+            }
+             doc.save(`${state.examName}_Seating_Arrangement_Course-Wise.pdf`);
+        }
+        
+        async function generateDutySheetPDF() {
+            if (Object.keys(state.dutyAssignments).length === 0) {
+                 notify('No duties assigned yet.', 'error');
+                 return;
+            }
+            notify('Generating Duty Sheet PDF...', 'success');
+            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+            
+            const dataByRoomDatePhase = {};
+            const allDates = new Set();
+            const allRoomsMeta = new Map(); 
+            const phasesByDate = {};
+            const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
+
+            for (const phaseKey of sortedPhaseKeys) {
+                const [date, phaseId] = phaseKey.split('|');
+                const phaseInfo = state.schedule[date]?.find(p => p.id === phaseId);
+                if (!phaseInfo) continue;
+                allDates.add(date);
+                if (!phasesByDate[date]) phasesByDate[date] = new Set();
+                const phaseLabel = `${formatTime12Hour(phaseInfo.startTime)} - ${formatTime12Hour(phaseInfo.endTime)}`;
+                phasesByDate[date].add(phaseLabel);
+                const roomsForPhase = state.dutyAssignments[phaseKey];
+                for (const roomName in roomsForPhase) {
+                    if (roomsForPhase[roomName].length > 0) {
+                        if (!allRoomsMeta.has(roomName)) {
+                            const block = state.allotment[phaseKey]?.find(b => b.roomName === roomName);
+                            allRoomsMeta.set(roomName, { roomName, blockNo: block?.blockNo || 'N/A' });
+                        }
+                        if (!dataByRoomDatePhase[roomName]) dataByRoomDatePhase[roomName] = {};
+                        if (!dataByRoomDatePhase[roomName][date]) dataByRoomDatePhase[roomName][date] = {};
+                        dataByRoomDatePhase[roomName][date][phaseLabel] = roomsForPhase[roomName];
+                    }
+                }
+            }
+
+            const sortedDates = [...allDates].sort();
+            const sortedRooms = [...allRoomsMeta.values()].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
+            for (const date in phasesByDate) {
+                phasesByDate[date] = [...phasesByDate[date]].sort();
+            }
+            const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
+            const headRow2 = [];
+            sortedDates.forEach(date => {
+                const phases = phasesByDate[date] || [];
+                const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+                const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                headRow1.push({ content: `${dayName}\n(${formattedDate})`, colSpan: phases.length > 0 ? phases.length : 1, styles: { halign: 'center' } });
+                if (phases.length > 0) {
+                    phases.forEach(phaseLabel => {
+                        headRow2.push({ content: phaseLabel, styles: { halign: 'center', minCellHeight: 10 } });
+                    });
+                } else {
+                    headRow2.push('');
+                }
+            });
+            const head = [headRow1, headRow2];
+            const body = [];
+            sortedRooms.forEach(({ roomName, blockNo }) => {
+                const row = [{ content: `${blockNo}\n${roomName}`, styles: { fontStyle: 'bold', valign: 'middle', halign: 'center'} }];
+                sortedDates.forEach(date => {
+                    const phases = phasesByDate[date] || [];
+                    if (phases.length === 0 && sortedDates.includes(date)) {
+                        row.push('');
+                    } else {
+                        phases.forEach(phaseLabel => {
+                            const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
+                            row.push(faculty.join('\n'));
+                        });
+                    }
+                });
+                body.push(row);
+            });
+            if (body.length === 0) {
+                notify('No duties assigned to any rooms with blocks.', 'error');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            
+            if (logoDataURL) {
+                doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+            }
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
+            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
+            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 31, { align: 'center' });
+            doc.autoTable({
+                head: head,
+                body: body,
+                startY: 38,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
+                headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
+                bodyStyles: { lineWidth: 0.1, minCellHeight: 25 },
+            });
+            doc.save(`${state.examName}_Duty_Sheet_Landscape.pdf`);
+        }
+
+        async function generateLoadMatrixPDF() {
+            const dutyCounts = getFacultyDutyCount();
+            const assignedFaculty = Object.entries(dutyCounts).filter(([, count]) => count > 0).sort(([, b], [, a]) => a - b);
+            
+            if (assignedFaculty.length === 0) {
+                notify("No duties have been assigned to any faculty yet.", "warning");
+                return;
+            }
+
+            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            if (logoDataURL) {
+                doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+            }
+
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
+            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
+            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 31, { align: 'center' });
+
+            const tableData = assignedFaculty.map(([name, count]) => [name, count]);
+
+            doc.autoTable({
+                head: [['Faculty Name', 'Total Duties']],
+                body: tableData,
+                startY: 40,
+                theme: 'grid',
+                headStyles: { fillColor: [55, 65, 81], textColor: [255, 255, 255], fontStyle: 'bold' },
+                columnStyles: { 1: { halign: 'center' } }
+            });
+
+            doc.save(`${state.examName}_Load_Matrix.pdf`);
+        }
+
+
+        function generateDutySheetHTML() {
+            const dataByRoomDatePhase = {};
+            const allDates = new Set();
+            const allRoomsMeta = new Map();
+            const phasesByDate = {};
+            const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
+        
+            for (const phaseKey of sortedPhaseKeys) {
+                const [date, phaseId] = phaseKey.split('|');
+                const phaseInfo = state.schedule[date]?.find(p => p.id === phaseId);
+                if (!phaseInfo) continue;
+                allDates.add(date);
+                if (!phasesByDate[date]) phasesByDate[date] = new Set();
+                const phaseLabel = `${formatTime12Hour(phaseInfo.startTime)} - ${formatTime12Hour(phaseInfo.endTime)}`;
+                phasesByDate[date].add(phaseLabel);
+                const roomsForPhase = state.dutyAssignments[phaseKey];
+                for (const roomName in roomsForPhase) {
+                    if (roomsForPhase[roomName].length > 0) {
+                        if (!allRoomsMeta.has(roomName)) {
+                            const block = state.allotment[phaseKey]?.find(b => b.roomName === roomName);
+                            allRoomsMeta.set(roomName, { roomName, blockNo: block?.blockNo || 'N/A' });
+                        }
+                        if (!dataByRoomDatePhase[roomName]) dataByRoomDatePhase[roomName] = {};
+                        if (!dataByRoomDatePhase[roomName][date]) dataByRoomDatePhase[roomName][date] = {};
+                        dataByRoomDatePhase[roomName][date][phaseLabel] = roomsForPhase[roomName];
+                    }
+                }
+            }
+
+            const sortedDates = [...allDates].sort();
+            const sortedRooms = [...allRoomsMeta.values()].sort((a, b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
+            for (const date in phasesByDate) {
+                phasesByDate[date] = [...phasesByDate[date]].sort();
+            }
+
+            let tableHTML = `<table class="w-full border-collapse text-xs">`;
+            // HEADERS
+            tableHTML += `<thead><tr class="bg-gray-200">`;
+            tableHTML += `<th rowspan="2" class="border p-2 align-middle">Block / Room No.</th>`;
+            sortedDates.forEach(date => {
+                const phases = phasesByDate[date] || [];
+                const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+                const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                tableHTML += `<th colspan="${phases.length > 0 ? phases.length : 1}" class="border p-2 text-center">${dayName}<br>(${formattedDate})</th>`;
+            });
+            tableHTML += `</tr><tr class="bg-gray-100">`;
+            sortedDates.forEach(date => {
+                const phases = phasesByDate[date] || [];
+                if(phases.length > 0){
+                    phases.forEach(phaseLabel => {
+                        tableHTML += `<th class="border p-2 text-center">${phaseLabel}</th>`;
+                    });
+                } else {
+                    tableHTML += `<th class="border p-2"></th>`;
+                }
+            });
+            tableHTML += `</tr></thead>`;
+
+            // BODY
+            tableHTML += `<tbody>`;
+            sortedRooms.forEach(({ roomName, blockNo }) => {
+                tableHTML += `<tr>`;
+                tableHTML += `<td class="border p-2 align-top text-center font-bold">${blockNo}<br>${roomName}</td>`;
+                sortedDates.forEach(date => {
+                    const phases = phasesByDate[date] || [];
+                     if (phases.length === 0) {
+                        tableHTML += `<td class="border p-2"></td>`;
+                    } else {
+                        phases.forEach(phaseLabel => {
+                            const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
+                            tableHTML += `<td class="border p-2 align-top h-24">${faculty.join('<br>')}</td>`;
+                        });
+                    }
+                });
+                tableHTML += `</tr>`;
+            });
+            tableHTML += `</tbody></table>`;
+            
+            if (sortedRooms.length === 0) {
+                return '<p class="text-center py-8">No duties assigned yet.</p>';
+            }
+
+            return tableHTML;
+        }
+
+        function showDutySheetModal() {
+            const dutySheetContent = generateDutySheetHTML();
+            state.modal = {
+                visible: true,
+                title: 'Faculty Duty Sheet Preview',
+                content: `<div class="w-full max-w-7xl">
+                            <div class="p-4 border-b flex justify-end bg-gray-50 rounded-t-lg">
+                                <button id="download-duty-pdf-final" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                                    ${ICONS.Printer}<span>Download PDF</span>
+                                </button>
+                            </div>
+                            <div class="p-4">${dutySheetContent}</div>
+                          </div>`
+            };
+            render();
+        }
+        
+        function showDutyMatrixModal(facultyName) {
+            const duties = [];
+            const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
+            
+            sortedPhaseKeys.forEach(phaseKey => {
+                const [date, phaseId] = phaseKey.split('|');
+                const phase = state.schedule[date]?.find(p => p.id === phaseId);
+                if (!phase) return;
+
+                const roomsForPhase = state.dutyAssignments[phaseKey];
+                for(const roomName in roomsForPhase) {
+                    if (roomsForPhase[roomName].includes(facultyName)) {
+                        duties.push({
+                            date,
+                            time: `${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`,
+                            room: roomName
+                        });
+                    }
+                }
+            });
+
+            let content;
+            if (duties.length > 0) {
+                content = `<div class="p-6">
+                            <ul class="space-y-3">
+                                ${duties.map(duty => `
+                                    <li class="p-3 bg-gray-100 rounded-md border">
+                                        <p class="font-semibold">${new Date(duty.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                        <p class="text-sm text-gray-700">Time: ${duty.time}</p>
+                                        <p class="text-sm text-gray-700">Room: <strong>${duty.room}</strong></p>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                           </div>`;
+            } else {
+                content = `<p class="p-6 text-center text-gray-500">No duties assigned to ${facultyName}.</p>`;
+            }
+
+            state.modal = {
+                visible: true,
+                title: `Duty Matrix for ${facultyName}`,
+                content: content
+            };
+            render();
+        }
+        
+        function showLoadMatrixModal() {
+            const dutyCounts = getFacultyDutyCount();
+            const assignedFaculty = Object.entries(dutyCounts).filter(([, count]) => count > 0).sort(([, b], [, a]) => a - b);
+            
+            let content;
+            if (assignedFaculty.length > 0) {
+                 content = `
+                    <div class="p-4 border-b flex justify-end bg-gray-50 rounded-t-lg">
+                        <button id="download-load-matrix-pdf" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                            ${ICONS.Printer}<span>Download PDF</span>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3 font-semibold">Faculty Name</th>
+                                    <th class="p-3 font-semibold text-center">Total Duties</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${assignedFaculty.map(([name, count]) => `
+                                    <tr class="border-t">
+                                        <td class="p-3">${name}</td>
+                                        <td class="p-3 text-center font-bold">${count}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>`;
+            } else {
+                content = `<p class="p-6 text-center text-gray-500">No duties have been assigned to any faculty yet.</p>`;
+            }
+
+            state.modal = {
+                visible: true,
+                title: 'Faculty Duty Load Matrix',
+                content
+            };
+            render();
+        }
+
+        function showAssignFacultyModal(phaseKey, roomName) {
+            const assignedInPhase = Object.values(state.dutyAssignments[phaseKey] || {}).flat();
+            const availableFaculty = state.facultyMaster.filter(f => !assignedInPhase.includes(f.name));
+
+            const content = `
+                <div class="p-4 border-b">
+                    <input type="text" id="modal-faculty-search" placeholder="Search available faculty..." class="w-full p-2 border rounded-md">
+                </div>
+                <form id="assign-faculty-form" data-phase-key="${phaseKey}" data-room="${roomName}">
+                    <div id="modal-faculty-list" class="p-6 space-y-3 max-h-80 overflow-y-auto">
+                        ${availableFaculty.length > 0 ? availableFaculty.map(f => `
+                            <label class="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" name="faculty" value="${f.name}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <span class="ml-3 text-sm font-medium text-gray-800">${f.name}</span>
+                            </label>
+                        `).join('') : '<p class="text-center text-gray-500">All available faculty are already assigned duties in this time slot.</p>'}
+                    </div>
+                    <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
+                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Assign Selected</button>
+                    </div>
+                </form>`;
+
+             state.modal = {
+                visible: true,
+                title: `Assign Faculty to ${roomName}`,
+                content
+            };
+            render();
+        }
+
+        function showAssignSubjectModal(date, phaseId) {
+            const schedulableSubjects = getFilteredSubjects();
+            const scheduledSubjectIds = new Set(Object.values(state.schedule).flatMap(day => day.flatMap(phase => phase.subjects)));
+            const unscheduledSubjects = schedulableSubjects.filter(s => !scheduledSubjectIds.has(s.id));
+            
+             const content = `
+                <div class="p-4 border-b">
+                    <input type="text" id="modal-subject-search" placeholder="Search available subjects..." class="w-full p-2 border rounded-md">
+                </div>
+                <form id="assign-subject-form" data-date="${date}" data-phase-id="${phaseId}">
+                    <div id="modal-subject-list" class="p-6 space-y-3 max-h-80 overflow-y-auto">
+                        ${unscheduledSubjects.length > 0 ? unscheduledSubjects.map(s => `
+                            <label class="flex items-start gap-3 p-3 rounded-lg border ${getColorForBranch(s.Branch)} cursor-pointer transition-all hover:shadow-md">
+                                <input type="checkbox" name="subject" value="${s.id}" class="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <div class="flex-grow">
+                                    <p class="font-semibold text-sm leading-tight">${s.SubjectName}</p>
+                                    <p class="text-xs text-gray-600 mt-1">${s.SubjectCode} | ${s.Branch} | ${s.Semester}</p>
+                                    <p class="text-xs text-gray-500">${(s.Specialization || []).join(', ')}</p>
+                                </div>
+                            </label>
+                        `).join('') : '<p class="text-center text-gray-500">All subjects for this exam are already scheduled.</p>'}
+                    </div>
+                    <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
+                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Assign Selected</button>
+                    </div>
+                </form>`;
+            
+            state.modal = {
+                visible: true,
+                title: `Assign Subjects`,
+                content
+            };
+            render();
+        }
+
+
+        function showTimetableModal() {
+            const timetableContent = generateTimetableHTML();
+            state.modal = { visible: true, title: 'Exam Timetable Preview', content: `<div class="w-full max-w-5xl"><div class="p-4 border-b flex justify-end bg-gray-50 rounded-t-lg"><button id="print-timetable-btn" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">${ICONS.Printer}<span>Download PDF</span></button></div>${timetableContent}</div>` };
+            render();
+        }
+
+        function showAddPhaseModal(date) {
+            state.modal = { visible: true, title: 'Add New Exam Phase', content: `<form id="add-phase-form" data-date="${date}" class="p-6"><div class="space-y-4"><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="phase-modal-start" class="block text-sm font-medium text-gray-700">Start Time</label><input type="time" id="phase-modal-start" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500" required value="10:00"></div><div><label for="phase-modal-end" class="block text-sm font-medium text-gray-700">End Time</label><input type="time" id="phase-modal-end" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500" required value="13:00"></div></div><div class="pt-6 flex justify-end gap-3"><button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button><button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Add Phase</button></div></div></form>` };
+            render();
+        }
+
+        function renderModal() {
+             const container = $('#modal-container');
+            if(!state.modal.visible) { container.innerHTML = ''; return; }
+            const maxWidth = state.modal.title.includes('Timetable') ? 'max-w-5xl' : (state.modal.title.includes('Duty Sheet') ? 'max-w-7xl' : 'max-w-lg');
+            container.innerHTML = `<div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity"><div class="bg-white rounded-lg shadow-xl p-0 w-full ${maxWidth} max-h-[90vh] flex flex-col scale-95 animate-modal-in"><div class="flex justify-between items-center p-5 border-b"><h3 class="text-xl font-bold text-gray-800">${state.modal.title}</h3><button id="modal-close-btn" class="p-2 rounded-full hover:bg-gray-200">${ICONS.XClose}</button></div><div class="overflow-auto">${state.modal.content}</div></div></div>`;
+            
+            // Add event listener for modal search after it's rendered
+            if(state.modal.title.includes('Assign Faculty')) {
+                 const searchInput = $('#modal-faculty-search');
+                 const facultyListContainer = $('#modal-faculty-list');
+                 searchInput.addEventListener('input', (e) => {
+                     const searchTerm = e.target.value.toLowerCase();
+                     const allFacultyLabels = facultyListContainer.querySelectorAll('label');
+                     allFacultyLabels.forEach(label => {
+                         const name = label.querySelector('span').textContent.toLowerCase();
+                         label.style.display = name.includes(searchTerm) ? 'flex' : 'none';
+                     });
+                 });
+            } else if(state.modal.title.includes('Assign Subjects')) {
+                 const searchInput = $('#modal-subject-search');
+                 const subjectListContainer = $('#modal-subject-list');
+                 searchInput.addEventListener('input', (e) => {
+                     const searchTerm = e.target.value.toLowerCase();
+                     const allSubjectLabels = subjectListContainer.querySelectorAll('label');
+                     allSubjectLabels.forEach(label => {
+                         const name = label.querySelector('span').textContent.toLowerCase();
+                         label.style.display = name.includes(searchTerm) ? 'flex' : 'none';
+                     });
+                 });
+            }
+        }
+
+        function handleSubjectChange(element) {
+            const subjectId = element.value;
+            const subject = state.subjectsMasterList.find(s => s.id == subjectId);
+            const form = element.closest('.add-block-form');
+            if (!form) return;
+            const specContainer = form.querySelector('.specialization-container');
+            
+            if (subject && subject.Specialization && subject.Specialization.length > 0) {
+                specContainer.innerHTML = `
+                    <label class="text-xs font-medium text-gray-600">Specialization</label>
+                    <select name="specialization" class="block w-full p-2 border rounded-md text-sm mt-1">
+                        ${subject.Specialization.map(spec => `<option value="${spec}">${spec}</option>`).join('')}
+                    </select>
+                `;
+            } else {
+                specContainer.innerHTML = '';
+            }
+        }
+
+        // --- EVENT HANDLERS & INITIALIZATION ---
+        function handleGlobalClick(e) {
+            const stepBtn = e.target.closest('.step-btn'); if(stepBtn && state.currentStep > parseInt(stepBtn.dataset.step)) { state.currentStep = parseInt(stepBtn.dataset.step); render(); }
+            if (e.target.closest('#prev-step')) { state.currentStep--; render(); }
+            if (e.target.closest('#next-step')) { state.currentStep++; render(); }
+            const toggleBtn = e.target.closest('.btn-toggle');
+            if(toggleBtn) {
+                const {type, value} = toggleBtn.dataset;
+                if (type === 'type') { state.examDetails.type = value; }
+                else { const current = state.examDetails[type]; state.examDetails[type] = current.includes(value) ? current.filter(v => v !== value) : [...current, value]; }
+                updateExamName(); render();
+            }
+            if (e.target.closest('#add-subject-btn')) addSubjectManually();
+            if (e.target.closest('#add-faculty-btn')) addFaculty();
+            const removeFacultyBtn = e.target.closest('.remove-faculty-btn');
+            if (removeFacultyBtn) removeFaculty(removeFacultyBtn.dataset.facultyId);
+            const dutyMatrixBtn = e.target.closest('.faculty-duty-matrix-btn');
+            if(dutyMatrixBtn) showDutyMatrixModal(dutyMatrixBtn.dataset.facultyName);
+            const assignFacultyBtn = e.target.closest('.assign-faculty-btn');
+            if(assignFacultyBtn) showAssignFacultyModal(assignFacultyBtn.dataset.phaseKey, assignFacultyBtn.dataset.room);
+            const assignSubjectBtn = e.target.closest('.assign-subject-btn');
+            if(assignSubjectBtn) showAssignSubjectModal(assignSubjectBtn.dataset.date, assignSubjectBtn.dataset.phaseId);
+
+            if (e.target.closest('#modal-close-btn') || e.target.id === 'modal-overlay' || e.target.closest('#modal-cancel-btn')) { state.modal.visible = false; render(); }
+            
+            if (e.target.closest('#cal-prev')) { 
+                const newDate = new Date(state.scheduler.calendarDate);
+                newDate.setMonth(newDate.getMonth() - 1);
+                state.scheduler.calendarDate = newDate;
+                render(); 
+            }
+            if (e.target.closest('#cal-next')) { 
+                const newDate = new Date(state.scheduler.calendarDate);
+                newDate.setMonth(newDate.getMonth() + 1);
+                state.scheduler.calendarDate = newDate;
+                render(); 
+            }
+
+            const calDay = e.target.closest('.calendar-day'); if (calDay) addExamDate(calDay.dataset.date);
+            const removeDateBtn = e.target.closest('.remove-date-btn'); if(removeDateBtn) removeExamDate(removeDateBtn.dataset.date);
+            const addPhaseBtn = e.target.closest('.add-phase-btn'); if(addPhaseBtn) showAddPhaseModal(addPhaseBtn.dataset.date);
+            const removePhaseBtn = e.target.closest('.remove-phase-btn'); if(removePhaseBtn) removePhase(removePhaseBtn.dataset.date, removePhaseBtn.dataset.phaseId);
+            const copyPhaseBtn = e.target.closest('.copy-phases-btn'); if(copyPhaseBtn) copyPhases(copyPhaseBtn.dataset.date);
+            if(e.target.closest('#publish-timetable-btn')) showTimetableModal();
+            if(e.target.closest('#print-timetable-btn')) generateTimetablePDF();
+            if (e.target.closest('#add-room-btn')) addRoom();
+            const removeRoomBtn = e.target.closest('.remove-room-btn');
+            if (removeRoomBtn) removeRoom(removeRoomBtn.dataset.roomId);
+            const removeBlockBtn = e.target.closest('.remove-block-btn');
+            if (removeBlockBtn) handleRemoveBlock(removeBlockBtn.dataset.phaseKey, removeBlockBtn.dataset.blockId);
+            const pasteBlocksBtn = e.target.closest('.paste-blocks-btn');
+            if (pasteBlocksBtn) {
+                const { targetKey, sourceKey } = pasteBlocksBtn.dataset;
+                const sourceBlocks = state.allotment[sourceKey];
+                if (!sourceBlocks) return;
+                const [targetDate, targetPhaseId] = targetKey.split('|');
+                const targetPhase = state.schedule[targetDate]?.find(p => p.id === targetPhaseId);
+                if (!targetPhase) return;
+                const targetSubjects = targetPhase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+                const newBlocks = [];
+                let unmappedCount = 0;
+                sourceBlocks.forEach(sourceBlock => {
+                    const sourceSubject = state.subjectsMasterList.find(s => s.id == sourceBlock.subjectId);
+                    if (!sourceSubject) {
+                        unmappedCount++;
+                        return;
+                    }
+                    const bestMatch = targetSubjects.find(targetSubject => {
+                        const isSameStream = targetSubject.Branch === sourceSubject.Branch && targetSubject.Semester === sourceSubject.Semester;
+                        if (!isSameStream) return false;
+                        if (sourceBlock.specialization) {
+                            return targetSubject.Specialization && targetSubject.Specialization.includes(sourceBlock.specialization);
+                        }
+                        return true;
+                    });
+                    if (bestMatch) {
+                        newBlocks.push({
+                            ...sourceBlock,
+                            id: `block_${Date.now()}_${Math.random()}`,
+                            subjectId: bestMatch.id,
+                        });
+                    } else {
+                        unmappedCount++;
+                    }
+                });
+                state.allotment[targetKey] = newBlocks;
+                if (unmappedCount > 0) {
+                    notify(`${newBlocks.length} blocks repeated. ${unmappedCount} blocks could not be matched to a subject and were skipped.`, 'success');
+                } else {
+                    notify(`Seating plan successfully repeated with updated subjects.`, 'success');
+                }
+                render();
+            }
+            if (e.target.closest('#download-seating-pdf')) generateSeatingArrangementPDF();
+            if (e.target.closest('#preview-duty-pdf')) showDutySheetModal();
+            if (e.target.closest('#download-duty-pdf-final')) generateDutySheetPDF();
+            if (e.target.closest('#view-load-matrix-btn')) showLoadMatrixModal();
+            if (e.target.closest('#download-load-matrix-pdf')) generateLoadMatrixPDF();
+
+            
+            const removeSubjectBtn = e.target.closest('.remove-subject-from-phase-btn');
+            if(removeSubjectBtn) {
+                const { date, phaseId, subjectId } = removeSubjectBtn.dataset;
+                const phase = state.schedule[date]?.find(p => p.id === phaseId);
+                if (phase) {
+                    phase.subjects = phase.subjects.filter(id => id != subjectId);
+                    render();
+                }
+            }
+            const removeDutyBtn = e.target.closest('.remove-duty-btn');
+            if (removeDutyBtn) {
+                const { phaseKey, room, name } = removeDutyBtn.dataset;
+                if(state.dutyAssignments[phaseKey] && state.dutyAssignments[phaseKey][room]) {
+                    state.dutyAssignments[phaseKey][room] = state.dutyAssignments[phaseKey][room].filter(facName => facName !== name);
+                    render();
+                }
+            }
+        }
+        function handleGlobalChange(e) {
+            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') { state.examDetails[e.target.id.split('-')[1]] = e.target.value; updateExamName(); render(); }
+            if (e.target.matches('#subject-file-upload')) { handleFileUpload(e.target.files[0], 'subject'); e.target.value = ''; }
+            if (e.target.matches('#room-file-upload')) { handleFileUpload(e.target.files[0], 'room'); e.target.value = ''; }
+            if (e.target.matches('#faculty-file-upload')) { handleFileUpload(e.target.files[0], 'faculty'); e.target.value = ''; }
+            if (e.target.dataset.action === 'update-specializations') {
+                handleSubjectChange(e.target);
+            }
+        }
+        function handleGlobalSubmit(e) {
+            e.preventDefault();
+            if (e.target.matches('.add-block-form')) {
+                handleAddBlock(e.target, e.target.dataset.phaseKey);
+            }
+            if (e.target.id === 'add-phase-form') {
+                const form = e.target;
+                const date = form.dataset.date;
+                const startTime = form.querySelector('#phase-modal-start').value;
+                const endTime = form.querySelector('#phase-modal-end').value;
+                if (startTime && endTime) {
+                    if (!state.schedule[date]) state.schedule[date] = [];
+                    state.schedule[date].push({ id: `phase_${Date.now()}`, startTime, endTime, subjects: [] });
+                    state.modal.visible = false;
+                    notify('New phase added successfully!', 'success');
+                    render();
+                } else {
+                    notify('Both start and end times are required.', 'error');
+                }
+            }
+             if (e.target.id === 'assign-faculty-form') {
+                const { phaseKey, room } = e.target.dataset;
+                const formData = new FormData(e.target);
+                const selectedFaculty = formData.getAll('faculty');
+                
+                if (!state.dutyAssignments[phaseKey]) state.dutyAssignments[phaseKey] = {};
+                if (!state.dutyAssignments[phaseKey][room]) state.dutyAssignments[phaseKey][room] = [];
+
+                selectedFaculty.forEach(name => {
+                    if (!state.dutyAssignments[phaseKey][room].includes(name)) {
+                        state.dutyAssignments[phaseKey][room].push(name);
+                    }
+                });
+                
+                state.modal.visible = false;
+                render();
+            }
+            if (e.target.id === 'assign-subject-form') {
+                const { date, phaseId } = e.target.dataset;
+                const formData = new FormData(e.target);
+                const selectedSubjects = formData.getAll('subject').map(id => parseFloat(id));
+                const phase = state.schedule[date].find(p => p.id === phaseId);
+                if (phase) {
+                    selectedSubjects.forEach(id => {
+                        if(!phase.subjects.includes(id)) {
+                             phase.subjects.push(id);
+                        }
+                    })
+                }
+                state.modal.visible = false;
+                render();
+            }
+        }
+
+        function init() {
+            $('#university-name').textContent = UNIVERSITY_NAME;
+            state.examName = `${state.examDetails.session} - ${state.examDetails.academicYear}`;
+            render();
+            
+            const appContainer = $('#app-container');
+            appContainer.addEventListener('click', handleGlobalClick);
+            appContainer.addEventListener('change', handleGlobalChange);
+            appContainer.addEventListener('submit', handleGlobalSubmit);
+            
+            // Refactored input handler to prevent re-rendering on search
+            appContainer.addEventListener('input', e => {
+                if (e.target.id === 'exam-name') {
+                    state.examName = e.target.value; // Update state without re-rendering
+                } else if (e.target.id === 'scheduler-search') {
+                    state.scheduler.searchTerm = e.target.value;
+                    const container = $('#unscheduled-list');
+                    if (container) container.innerHTML = renderUnscheduledSubjectsList();
+                } else if (e.target.id === 'faculty-search') {
+                    state.facultySearchTerm = e.target.value;
+                    const container = $('#faculty-list');
+                    if (container) container.innerHTML = renderFacultyList();
+                }
+            });
+
+            // Drag and Drop listeners
+            appContainer.addEventListener('dragstart', e => { 
+                const draggable = e.target.closest('.draggable');
+                if (draggable) { 
+                    state.draggedItemId = draggable.dataset.id;
+                    state.draggedItemType = draggable.dataset.type;
+                    e.target.style.opacity = '0.5'; 
+                } 
+            });
+            appContainer.addEventListener('dragend', e => { 
+                const draggable = e.target.closest('.draggable');
+                if (draggable) {
+                    e.target.style.opacity = '1'; 
+                }
+                state.draggedItemId = null; 
+                state.draggedItemType = null;
+            });
+            appContainer.addEventListener('dragover', e => { 
+                const dropZone = e.target.closest('.drop-zone');
+                if (dropZone && dropZone.dataset.type === state.draggedItemType) { 
+                    e.preventDefault(); 
+                    dropZone.classList.add('drop-zone-active'); 
+                } 
+            });
+            appContainer.addEventListener('dragleave', e => { 
+                 const dropZone = e.target.closest('.drop-zone');
+                if (dropZone) {
+                    dropZone.classList.remove('drop-zone-active'); 
+                }
+            });
+            appContainer.addEventListener('drop', e => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                 if (!dropZone || !state.draggedItemId || dropZone.dataset.type !== state.draggedItemType) return;
+                
+                dropZone.classList.remove('drop-zone-active');
+
+                if (state.draggedItemType === 'subject') {
+                    const { date, phaseId } = dropZone.dataset;
+                    Object.keys(state.schedule).forEach(d => { state.schedule[d].forEach(p => { p.subjects = p.subjects.filter(id => id != state.draggedItemId); }); });
+                    const subjectIdAsNumber = parseFloat(state.draggedItemId);
+                    const targetPhase = state.schedule[date].find(p => p.id === phaseId);
+                    if (targetPhase && !targetPhase.subjects.includes(subjectIdAsNumber)) {
+                       targetPhase.subjects.push(subjectIdAsNumber);
+                    }
+                } else if (state.draggedItemType === 'faculty') {
+                    const { phaseKey, room } = dropZone.dataset;
+                    const faculty = state.facultyMaster.find(f => f.id === state.draggedItemId);
+                    if (!faculty) return;
+
+                    const assignedInPhase = Object.values(state.dutyAssignments[phaseKey] || {}).flat();
+                    if (assignedInPhase.includes(faculty.name)) {
+                        notify(`${faculty.name} is already assigned a duty in this time slot.`, 'error');
+                        return;
+                    }
+                    if (!state.dutyAssignments[phaseKey]) state.dutyAssignments[phaseKey] = {};
+                    if (!state.dutyAssignments[phaseKey][room]) state.dutyAssignments[phaseKey][room] = [];
+                    if (!state.dutyAssignments[phaseKey][room].includes(faculty.name)) {
+                         state.dutyAssignments[phaseKey][room].push(faculty.name);
+                    }
+                }
+                render();
+            });
+        }
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+

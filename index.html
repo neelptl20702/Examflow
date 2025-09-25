@@ -1317,7 +1317,6 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const DATES_PER_PAGE = 4;
-            const MIN_ROWS = 13;
         
             const dateChunks = [];
             for (let i = 0; i < sortedDates.length; i += DATES_PER_PAGE) {
@@ -1331,12 +1330,15 @@
         
                 if (logoDataURL) addPdfHeader(doc, logoDataURL);
         
-                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
-                doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 37, { align: 'center' });
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+                
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
         
                 const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
                 const headRow2 = [];
-                let columnCount = 1;
         
                 dateChunk.forEach(date => {
                     const phases = phasesByDate[date] || [];
@@ -1346,11 +1348,9 @@
                     if (phases.length > 0) {
                         phases.forEach(phaseLabel => {
                             headRow2.push({ content: phaseLabel, styles: { halign: 'center', minCellHeight: 10 } });
-                            columnCount++;
                         });
                     } else {
                         headRow2.push('');
-                        columnCount++;
                     }
                 });
         
@@ -1372,15 +1372,11 @@
                     });
                     body.push(row);
                 });
-
-                while (body.length < MIN_ROWS) {
-                    body.push(Array(columnCount).fill(''));
-                }
         
                 doc.autoTable({
                     head: head,
                     body: body,
-                    startY: 42,
+                    startY: 40,
                     theme: 'grid',
                     styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
                     headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
@@ -2174,4 +2170,5 @@
     </script>
 </body>
 </html>
+
 

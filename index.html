@@ -66,7 +66,12 @@
                         <p id="school-name" class="text-xs text-gray-500"></p>
                     </div>
                 </div>
-                 <button id="clear-data-btn" class="absolute top-0 right-0 text-xs text-gray-400 hover:text-red-600 hover:underline">Clear All Data</button>
+                 <div class="absolute top-0 right-0 flex items-center divide-x divide-gray-300 text-xs">
+                    <button id="save-to-file-btn" class="px-2 text-gray-500 hover:text-blue-600 hover:underline">Save Data</button>
+                    <label for="load-from-file-input" class="px-2 text-gray-500 hover:text-green-600 hover:underline cursor-pointer">Load Data</label>
+                    <input type="file" id="load-from-file-input" class="hidden" accept=".json">
+                    <button id="clear-data-btn" class="pl-2 text-gray-500 hover:text-red-600 hover:underline">Clear All</button>
+                </div>
             </div>
             <div id="stepper-container" class="max-w-5xl mx-auto"></div>
         </header>
@@ -1263,19 +1268,19 @@
         
         async function generateDutySheetPDF() {
             if (Object.keys(state.dutyAssignments).length === 0) {
-                 notify('No duties assigned yet.', 'error');
-                 return;
+                notify('No duties assigned yet.', 'error');
+                return;
             }
             notify('Generating Duty Sheet PDF...', 'success');
             const logoDataURL = await imageToBase64('itmbu_logo.png');
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
-            
+        
             const dataByRoomDatePhase = {};
             const allDates = new Set();
-            const allRoomsMeta = new Map(); 
+            const allRoomsMeta = new Map();
             const phasesByDate = {};
             const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
-
+        
             for (const phaseKey of sortedPhaseKeys) {
                 const [date, phaseId] = phaseKey.split('|');
                 const phaseInfo = state.schedule[date]?.find(p => p.id === phaseId);
@@ -1297,65 +1302,93 @@
                     }
                 }
             }
-
+        
             const sortedDates = [...allDates].sort();
             const sortedRooms = [...allRoomsMeta.values()].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
             for (const date in phasesByDate) {
                 phasesByDate[date] = [...phasesByDate[date]].sort();
             }
-            const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
-            const headRow2 = [];
-            sortedDates.forEach(date => {
-                const phases = phasesByDate[date] || [];
-                const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-                const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                headRow1.push({ content: `${dayName}\n(${formattedDate})`, colSpan: phases.length > 0 ? phases.length : 1, styles: { halign: 'center' } });
-                if (phases.length > 0) {
-                    phases.forEach(phaseLabel => {
-                        headRow2.push({ content: phaseLabel, styles: { halign: 'center', minCellHeight: 10 } });
-                    });
-                } else {
-                    headRow2.push('');
-                }
-            });
-            const head = [headRow1, headRow2];
-            const body = [];
-            sortedRooms.forEach(({ roomName, blockNo }) => {
-                const row = [{ content: `${blockNo}\n${roomName}`, styles: { fontStyle: 'bold', valign: 'middle', halign: 'center'} }];
-                sortedDates.forEach(date => {
-                    const phases = phasesByDate[date] || [];
-                    if (phases.length === 0 && sortedDates.includes(date)) {
-                        row.push('');
-                    } else {
-                        phases.forEach(phaseLabel => {
-                            const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
-                            row.push(faculty.join('\n'));
-                        });
-                    }
-                });
-                body.push(row);
-            });
-            if (body.length === 0) {
+
+            if (sortedRooms.length === 0) {
                 notify('No duties assigned to any rooms with blocks.', 'error');
                 return;
             }
+        
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            
-            if (logoDataURL) addPdfHeader(doc, logoDataURL);
+            const DATES_PER_PAGE = 4;
+            const MIN_ROWS = 13;
+        
+            const dateChunks = [];
+            for (let i = 0; i < sortedDates.length; i += DATES_PER_PAGE) {
+                dateChunks.push(sortedDates.slice(i, i + DATES_PER_PAGE));
+            }
+        
+            dateChunks.forEach((dateChunk, pageIndex) => {
+                if (pageIndex > 0) {
+                    doc.addPage();
+                }
+        
+                if (logoDataURL) addPdfHeader(doc, logoDataURL);
+        
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
+                doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 37, { align: 'center' });
+        
+                const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
+                const headRow2 = [];
+                let columnCount = 1;
+        
+                dateChunk.forEach(date => {
+                    const phases = phasesByDate[date] || [];
+                    const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+                    const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    headRow1.push({ content: `${dayName}\n(${formattedDate})`, colSpan: phases.length > 0 ? phases.length : 1, styles: { halign: 'center' } });
+                    if (phases.length > 0) {
+                        phases.forEach(phaseLabel => {
+                            headRow2.push({ content: phaseLabel, styles: { halign: 'center', minCellHeight: 10 } });
+                            columnCount++;
+                        });
+                    } else {
+                        headRow2.push('');
+                        columnCount++;
+                    }
+                });
+        
+                const head = [headRow1, headRow2];
+                const body = [];
+        
+                sortedRooms.forEach(({ roomName, blockNo }) => {
+                    const row = [{ content: `${blockNo}\n${roomName}`, styles: { fontStyle: 'bold', valign: 'middle', halign: 'center'} }];
+                    dateChunk.forEach(date => {
+                        const phases = phasesByDate[date] || [];
+                        if (phases.length === 0) {
+                            row.push('');
+                        } else {
+                            phases.forEach(phaseLabel => {
+                                const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
+                                row.push(faculty.join('\n'));
+                            });
+                        }
+                    });
+                    body.push(row);
+                });
 
-            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
-            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 26, { align: 'center' });
-            doc.autoTable({
-                head: head,
-                body: body,
-                startY: 32,
-                theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
-                headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
-                bodyStyles: { lineWidth: 0.1 },
+                while (body.length < MIN_ROWS) {
+                    body.push(Array(columnCount).fill(''));
+                }
+        
+                doc.autoTable({
+                    head: head,
+                    body: body,
+                    startY: 42,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
+                    headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
+                    bodyStyles: { lineWidth: 0.1, minCellHeight: 12 },
+                });
             });
-            doc.save(`${state.examName}_Duty_Sheet_Landscape.pdf`);
+        
+            doc.save(`${state.examName}_Duty_Sheet_Paginated.pdf`);
         }
 
         async function generateLoadMatrixPDF() {
@@ -1734,11 +1767,32 @@
             }
         }
 
+        function saveStateToFile() {
+            try {
+                const stateString = JSON.stringify(state, null, 2);
+                const blob = new Blob([stateString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const date = new Date().toISOString().slice(0, 10);
+                a.href = url;
+                a.download = `ExamFlow_Backup_${date}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                notify('Data saved to file successfully!', 'success');
+            } catch (error) {
+                console.error('Failed to save state to file:', error);
+                notify('Could not save data to file.', 'error');
+            }
+        }
+
         // --- EVENT HANDLERS & INITIALIZATION ---
         function handleGlobalClick(e) {
             const stepBtn = e.target.closest('.step-btn'); if(stepBtn && state.currentStep > parseInt(stepBtn.dataset.step)) { state.currentStep = parseInt(stepBtn.dataset.step); render(); saveState(); }
             if (e.target.closest('#prev-step')) { state.currentStep--; render(); saveState(); }
             if (e.target.closest('#next-step')) { state.currentStep++; render(); saveState(); }
+            if (e.target.closest('#save-to-file-btn')) saveStateToFile();
             if (e.target.closest('#clear-data-btn')) {
                 showConfirmationModal(
                     'Clear All Data?',
@@ -1770,6 +1824,7 @@
                                state.dutyAssignments[phaseKey][room] = state.dutyAssignments[phaseKey][room].filter(name => name !== facultyToRemove.name);
                            });
                         });
+                        render();
                         saveState();
                     });
                 }
@@ -1806,6 +1861,7 @@
                     if (state.scheduler.selectedDate === date) {
                         state.scheduler.selectedDate = null;
                     }
+                    render();
                     saveState();
                  });
             }
@@ -1827,6 +1883,7 @@
                 if (room) {
                     showConfirmationModal('Delete Room?', `Are you sure you want to delete room "${room.name}"?`, () => {
                         state.roomsMaster = state.roomsMaster.filter(r => r.id !== roomId);
+                        render();
                         saveState();
                     });
                 }
@@ -1837,6 +1894,7 @@
                 showConfirmationModal('Delete Block?', 'Are you sure you want to delete this seating block?', () => {
                      if(state.allotment[phaseKey]) {
                         state.allotment[phaseKey] = state.allotment[phaseKey].filter(b => b.id !== blockId);
+                        render();
                         saveState();
                     }
                 });
@@ -1990,11 +2048,46 @@
             appContainer.addEventListener('change', handleGlobalChange);
             appContainer.addEventListener('submit', handleGlobalSubmit);
             
-            // Refactored input handler to prevent re-rendering on search
+            const loadInput = document.getElementById('load-from-file-input');
+            loadInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const loadedState = JSON.parse(e.target.result);
+                        if (loadedState && loadedState.examDetails && loadedState.currentStep) {
+                            showConfirmationModal(
+                                'Load Data from File?',
+                                'This will overwrite all current data. Are you sure you want to continue?',
+                                () => {
+                                    Object.assign(state, loadedState);
+                                    if (state.scheduler && state.scheduler.calendarDate) {
+                                        state.scheduler.calendarDate = new Date(state.scheduler.calendarDate);
+                                    }
+                                    saveState();
+                                    notify('Data loaded successfully!', 'success');
+                                    render();
+                                }
+                            );
+                        } else {
+                            throw new Error('Invalid file format.');
+                        }
+                    } catch (error) {
+                        console.error('Failed to load state from file:', error);
+                        notify('Could not load data. The file may be corrupt or invalid.', 'error');
+                    } finally {
+                        event.target.value = ''; 
+                    }
+                };
+                reader.readAsText(file);
+            });
+            
             appContainer.addEventListener('input', e => {
                 if (e.target.id === 'exam-name') {
-                    state.examName = e.target.value; // Update state without re-rendering
-                    saveState(); // Still save on input change
+                    state.examName = e.target.value;
+                    saveState();
                 } else if (e.target.id === 'scheduler-search') {
                     state.scheduler.searchTerm = e.target.value;
                     const container = $('#unscheduled-list');
@@ -2043,7 +2136,6 @@
                 
                 dropZone.classList.remove('drop-zone-active');
                 
-                // Add a temporary success animation
                 dropZone.classList.add('drop-zone-success');
                 setTimeout(() => {
                     dropZone.classList.remove('drop-zone-success');
@@ -2082,3 +2174,4 @@
     </script>
 </body>
 </html>
+

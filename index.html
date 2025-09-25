@@ -1330,12 +1330,15 @@
         
                 if (logoDataURL) addPdfHeader(doc, logoDataURL);
         
+                const rightMargin = doc.internal.pageSize.getWidth() - 14;
+                const logoY = 10;
+        
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 30, { align: 'center' });
+                doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, rightMargin, logoY + 5, { align: 'right' });
                 
                 doc.setFont('helvetica', 'normal');
-                doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+                doc.text(`Academic Year: ${state.examDetails.academicYear}`, rightMargin, logoY + 10, { align: 'right' });
         
                 const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
                 const headRow2 = [];
@@ -2170,5 +2173,6 @@
     </script>
 </body>
 </html>
+
 
 

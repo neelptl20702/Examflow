@@ -1014,7 +1014,8 @@
                 if (!isFirstPage) doc.addPage();
                 
                 if (logoDataURL) {
-                    doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+                    // Centered logo better and adjusted aspect ratio
+                    doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
                 }
 
                 doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.text(UNIVERSITY_NAME, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
@@ -1086,7 +1087,8 @@
                 isFirstPageOfDocument = false;
                 
                 if (logoDataURL) {
-                    doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+                     // Centered logo better and adjusted aspect ratio
+                    doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
                 }
                 doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
                 doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY', doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
@@ -1243,7 +1245,8 @@
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             
             if (logoDataURL) {
-                doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+                // Centered logo better and adjusted aspect ratio
+                doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
             }
             doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
             doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
@@ -1255,7 +1258,8 @@
                 theme: 'grid',
                 styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
                 headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
-                bodyStyles: { lineWidth: 0.1, minCellHeight: 25 },
+                // Improved row height by letting it be automatic
+                bodyStyles: { lineWidth: 0.1 },
             });
             doc.save(`${state.examName}_Duty_Sheet_Landscape.pdf`);
         }
@@ -1276,7 +1280,8 @@
             const doc = new jsPDF();
 
             if (logoDataURL) {
-                doc.addImage(logoDataURL, 'PNG', 14, 10, 40, 15);
+                // Centered logo better and adjusted aspect ratio
+                doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
             }
 
             doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
@@ -1892,5 +1897,3 @@
     </script>
 </body>
 </html>
-
-

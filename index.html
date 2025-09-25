@@ -23,6 +23,11 @@
             border-color: #3b82f6; /* blue-500 */
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
         }
+        .drop-zone-success {
+            background-color: #d1fae5; /* green-100 */
+            border-color: #10b981; /* green-500 */
+            transition: background-color 0.3s, border-color 0.3s;
+        }
         .btn-toggle-active {
             background-color: #c53030; /* A shade of red from the logo */
             color: white;
@@ -52,14 +57,16 @@
     <div id="app-container" class="flex flex-col h-screen font-sans">
         <!-- Header -->
         <header class="bg-white shadow-md p-4 sticky top-0 z-20">
-            <div class="flex items-center justify-between max-w-7xl mx-auto mb-4">
+            <div class="relative flex items-center justify-between max-w-7xl mx-auto mb-4">
                 <div class="flex items-center gap-4">
                     <img src="site_banner.png" alt="SOCSET Exam Cell Logo" class="h-14">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-800">ExamFlow</h1>
-                        <p id="university-name" class="text-sm text-gray-500"></p>
+                        <p id="university-name" class="text-sm font-semibold text-gray-600"></p>
+                        <p id="school-name" class="text-xs text-gray-500"></p>
                     </div>
                 </div>
+                 <button id="clear-data-btn" class="absolute top-0 right-0 text-xs text-gray-400 hover:text-red-600 hover:underline">Clear All Data</button>
             </div>
             <div id="stepper-container" class="max-w-5xl mx-auto"></div>
         </header>
@@ -124,6 +131,7 @@
         };
 
         const UNIVERSITY_NAME = 'ITM (SLS) Baroda University';
+        const SCHOOL_NAME = 'School of Computer Science, Engineering and Technology';
         const EXAM_TYPES = ["CET 1", "CET 2", "MST", "REMEDIAL"];
         const BRANCHES = ["DIPLOMA", "BCA", "MCA", "BTECH"];
         const SPECIALIZATIONS = ["CSE", "IT", "AI", "CS", "DS", "CSA"];
@@ -141,7 +149,7 @@
             "DEFAULT": "bg-gray-100 text-gray-800 border-gray-300",
         };
 
-        // --- UTILITY FUNCTIONS ---
+        // --- UTILITY & STATE MANAGEMENT ---
         function getAcademicYear() {
             const today = new Date();
             const currentYear = today.getFullYear();
@@ -150,6 +158,34 @@
         }
         const $ = (selector) => document.querySelector(selector);
         const getColorForBranch = (branch) => BRANCH_COLORS[branch?.toUpperCase()] || BRANCH_COLORS.DEFAULT;
+
+        function saveState() {
+            try {
+                const stateToSave = JSON.stringify(state);
+                localStorage.setItem('examflow_state', stateToSave);
+            } catch (error) {
+                console.error("Could not save state to localStorage:", error);
+                notify('Could not save progress. Your browser might be in private mode or storage is full.', 'error');
+            }
+        }
+
+        function loadState() {
+            try {
+                const savedState = localStorage.getItem('examflow_state');
+                if (savedState) {
+                    const parsedState = JSON.parse(savedState);
+                    // Merge saved state. Dates need to be revived into Date objects.
+                    Object.assign(state, parsedState);
+                    if (parsedState.scheduler && parsedState.scheduler.calendarDate) {
+                        state.scheduler.calendarDate = new Date(parsedState.scheduler.calendarDate);
+                    }
+                    notify('Your previous session has been loaded.', 'success');
+                }
+            } catch (error) {
+                console.error("Could not load state from localStorage:", error);
+                localStorage.removeItem('examflow_state'); // Clear corrupted state
+            }
+        }
 
         function formatTime12Hour(timeString) {
             if (!timeString) return '';
@@ -236,7 +272,64 @@
 
         // --- STEP 2: Subjects ---
         function renderStep2_Subjects() {
-             return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Manage Subjects</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div><h3 class="font-semibold text-lg mb-4 text-gray-700">Add Subjects</h3><div class="bg-gray-50 p-6 rounded-lg border space-y-4"><div class="space-y-3"><input type="text" id="subject-code" placeholder="Subject Code" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-name" placeholder="Subject Name" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-branch" placeholder="Branch (e.g., BTECH)" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-semester" placeholder="Semester (e.g., Sem 1)" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><input type="text" id="subject-specialization" placeholder="Specializations (comma-sep)" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500"><button id="add-subject-btn" class="w-full bg-red-600 text-white p-2.5 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 font-semibold">${ICONS.Plus} Add Subject Manually</button></div><div class="border-t my-4"></div><div><p class="text-sm text-gray-600">Or upload a master list. Required headers: <strong>Branch, Semester, Specialization, SubjectName, SubjectCode</strong>.</p><label for="subject-file-upload" class="w-full mt-2 cursor-pointer flex items-center justify-center gap-2 bg-white text-red-600 p-4 rounded-lg border-2 border-dashed hover:bg-red-50"><span class="font-semibold">Upload Subjects Master</span></label><input type="file" id="subject-file-upload" class="hidden" accept=".csv, .xlsx"></div></div></div><div><h3 class="font-semibold text-lg mb-4 text-gray-700">Filtered Subjects for this Exam (${getFilteredSubjects().length})</h3><div class="overflow-y-auto max-h-[65vh] p-4 bg-gray-50 rounded-lg border" id="subjects-display-container">${renderFilteredSubjectsList()}</div></div></div>`;
+            const { branches, semesters, specializations } = state.examDetails;
+
+            const availableBranches = branches.length > 0 ? branches : BRANCHES;
+            const availableSemesters = semesters.length > 0 ? semesters : SEMESTERS;
+            const availableSpecs = specializations.length > 0 ? specializations : SPECIALIZATIONS;
+            
+            return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Manage Subjects</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-lg mb-4 text-gray-700">Add Subjects</h3>
+                        <div class="bg-gray-50 p-6 rounded-lg border space-y-4">
+                            <div class="space-y-4">
+                                <input type="text" id="subject-code" placeholder="Subject Code" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500">
+                                <input type="text" id="subject-name" placeholder="Subject Name" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500">
+                                
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600 mb-1 block">Branch</label>
+                                    <select id="subject-branch" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500 bg-white">
+                                        ${availableBranches.map(b => `<option value="${b}">${b}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600 mb-1 block">Semester</label>
+                                    <select id="subject-semester" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500 bg-white">
+                                        ${availableSemesters.map(s => `<option value="${s}">${s}</option>`).join('')}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600 mb-2 block">Specializations (for this subject)</label>
+                                    <div id="subject-specialization-checkboxes" class="grid grid-cols-3 gap-2 p-3 bg-white rounded-lg border">
+                                        ${availableSpecs.map(spec => `
+                                            <label class="flex items-center gap-2 text-sm">
+                                                <input type="checkbox" value="${spec}" name="subject-specialization" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                                ${spec}
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <button id="add-subject-btn" class="w-full bg-red-600 text-white p-2.5 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 font-semibold">${ICONS.Plus} Add Subject Manually</button>
+                            </div>
+                            <div class="border-t my-4"></div>
+                            <div>
+                                <p class="text-sm text-gray-600">Or upload a master list. Required headers: <strong>Branch, Semester, Specialization, SubjectName, SubjectCode</strong>.</p>
+                                <label for="subject-file-upload" class="w-full mt-2 cursor-pointer flex items-center justify-center gap-2 bg-white text-red-600 p-4 rounded-lg border-2 border-dashed hover:bg-red-50">
+                                    <span class="font-semibold">Upload Subjects Master</span>
+                                </label>
+                                <input type="file" id="subject-file-upload" class="hidden" accept=".csv, .xlsx">
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg mb-4 text-gray-700">Filtered Subjects for this Exam (${getFilteredSubjects().length})</h3>
+                        <div class="overflow-y-auto max-h-[65vh] p-4 bg-gray-50 rounded-lg border" id="subjects-display-container">${renderFilteredSubjectsList()}</div>
+                    </div>
+                </div>`;
         }
         
         function getFilteredSubjects() {
@@ -772,13 +865,15 @@
         function addSubjectManually() {
             const code = $('#subject-code').value.trim();
             const name = $('#subject-name').value.trim();
-            const branch = $('#subject-branch').value.trim().toUpperCase();
-            const semester = $('#subject-semester').value.trim();
-            const specializations = $('#subject-specialization').value.split(',').map(s => s.trim().toUpperCase());
+            const branch = $('#subject-branch').value;
+            const semester = $('#subject-semester').value;
+            const specializations = Array.from(document.querySelectorAll('[name="subject-specialization"]:checked')).map(cb => cb.value);
+
             if(code && name && branch && semester) {
                 state.subjectsMasterList.push({ id: Date.now(), SubjectCode: code, SubjectName: name, Branch: branch, Semester: semester, Specialization: specializations });
                 notify('Subject added to master list.');
                 render();
+                saveState();
             } else {
                 notify('Please fill all required fields for manual entry.', 'error');
             }
@@ -789,17 +884,12 @@
             }
             state.scheduler.selectedDate = date;
             render();
-        }
-        function removeExamDate(date) {
-            delete state.schedule[date];
-            if (state.scheduler.selectedDate === date) {
-                state.scheduler.selectedDate = null;
-            }
-            render();
+            saveState();
         }
         function removePhase(date, phaseId) {
             state.schedule[date] = state.schedule[date].filter(p => p.id !== phaseId);
             render();
+            saveState();
         }
         function addRoom() {
             const nameInput = $('#room-name');
@@ -812,13 +902,10 @@
                 capacityInput.value = '';
                 notify('Room added successfully.', 'success');
                 render();
+                saveState();
             } else {
                 notify('Please enter a valid room name and capacity.', 'error');
             }
-        }
-        function removeRoom(roomId) {
-            state.roomsMaster = state.roomsMaster.filter(r => r.id !== roomId);
-            render();
         }
         function addFaculty() {
              const nameInput = $('#faculty-name');
@@ -828,20 +915,10 @@
                 nameInput.value = '';
                 notify('Faculty added successfully.', 'success');
                 render();
+                saveState();
              } else {
                 notify('Please enter a faculty name.', 'error');
              }
-        }
-        function removeFaculty(facultyId) {
-             const facultyToRemove = state.facultyMaster.find(f => f.id == facultyId);
-             if (!facultyToRemove) return;
-             state.facultyMaster = state.facultyMaster.filter(f => f.id != facultyId);
-             Object.keys(state.dutyAssignments).forEach(phaseKey => {
-                Object.keys(state.dutyAssignments[phaseKey]).forEach(room => {
-                    state.dutyAssignments[phaseKey][room] = state.dutyAssignments[phaseKey][room].filter(name => name !== facultyToRemove.name);
-                });
-             });
-             render();
         }
         function handleAddBlock(form, phaseKey) {
             const formData = new FormData(form);
@@ -858,14 +935,9 @@
                 state.allotment[phaseKey].push(block);
                 form.reset();
                 render();
+                saveState();
             } else {
                 notify('Please fill all fields to add a block.', 'error');
-            }
-        }
-        function handleRemoveBlock(phaseKey, blockId) {
-            if(state.allotment[phaseKey]) {
-                state.allotment[phaseKey] = state.allotment[phaseKey].filter(b => b.id !== blockId);
-                render();
             }
         }
         function copyPhases(date) {
@@ -879,6 +951,7 @@
                 state.schedule[date] = phasesToCopy.map(p => ({ ...p, id: `phase_${Date.now()}_${Math.random()}`, subjects: [] }));
                 notify(`Copied ${phasesToCopy.length} phase(s) from ${prevDate}.`, 'success');
                 render();
+                saveState();
             } else {
                 notify('No previous day with phases to copy from.', 'error');
             }
@@ -939,22 +1012,52 @@
                         notify(`${newFaculty.length} faculty loaded from file.`, 'success');
                     }
                     render();
+                    saveState();
                 } catch(err) { notify('Error processing file. Check format and headers.', 'error'); console.error(err); }
             };
             reader.readAsBinaryString(file);
         }
 
         // --- PDF & Modal & DYNAMIC HELPERS ---
+        
+        function addPdfHeader(doc, logoDataURL) {
+            const logoWidth = 35;
+            const logoHeight = 12; 
+            const logoX = 14;
+            const logoY = 10;
+            doc.addImage(logoDataURL, 'PNG', logoX, logoY, logoWidth, logoHeight);
+
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text(UNIVERSITY_NAME, logoX + logoWidth + 5, logoY + 5);
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(SCHOOL_NAME.toUpperCase(), logoX + logoWidth + 5, logoY + 10);
+            
+            doc.setLineWidth(0.5);
+            doc.line(14, logoY + logoHeight + 4, doc.internal.pageSize.getWidth() - 14, logoY + logoHeight + 4);
+        }
+
         function generateTimetableHTML() {
             const allExams = [];
+            const selectedSpecs = state.examDetails.specializations;
+
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
                     for (const subjectId of phase.subjects) {
                         const subject = state.subjectsMasterList.find(s => s.id === subjectId);
                         if (subject) {
                             const examData = { date, time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, code: subject.SubjectCode, name: subject.SubjectName, };
+                            
                             if (subject.Specialization && subject.Specialization.length > 0) {
-                                subject.Specialization.forEach(spec => { allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }); });
+                                const relevantSpecs = selectedSpecs.length > 0
+                                    ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
+                                    : subject.Specialization;
+
+                                relevantSpecs.forEach(spec => {
+                                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                                });
                             } else {
                                 allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
                             }
@@ -963,11 +1066,11 @@
                 }
             }
 
-            if (allExams.length === 0) { return '<p class="text-center py-8">No exams have been scheduled yet.</p>'; }
+            if (allExams.length === 0) { return '<p class="text-center py-8">No exams have been scheduled for the selected filters.</p>'; }
             const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) { acc[exam.group] = []; } acc[exam.group].push(exam); return acc; }, {});
             for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
             const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
-            let html = `<div id="timetable-to-print" class="p-8 bg-white"><div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p><h2 class="text-2xl font-bold text-red-700 mt-4">${state.examDetails.type} TIME-TABLE</h2></div>`;
+            let html = `<div id="timetable-to-print" class="p-8 bg-white"><div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">${SCHOOL_NAME.toUpperCase()}</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p><h2 class="text-2xl font-bold text-red-700 mt-4">${state.examDetails.type} TIME-TABLE</h2></div>`;
             const sortedGroups = Object.keys(examsByGroup).sort();
             for (const groupName of sortedGroups) {
                 html += `<div class="mb-8 page-break-after"><h3 class="text-xl font-bold text-gray-800 mb-3 p-2 bg-gray-100 rounded-md">${groupName}</h3><table class="w-full border-collapse text-sm"><thead><tr class="bg-gray-200"><th class="border p-3 text-left w-1/3">DATE & TIME</th><th class="border p-3 text-left w-1/4">COURSE CODE</th><th class="border p-3 text-left">COURSE NAME</th></tr></thead><tbody>`;
@@ -987,14 +1090,22 @@
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
 
             const allExams = [];
+            const selectedSpecs = state.examDetails.specializations;
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
                     for (const subjectId of phase.subjects) {
                         const subject = state.subjectsMasterList.find(s => s.id === subjectId);
                         if (subject) {
                              const examData = { date, time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, code: subject.SubjectCode, name: subject.SubjectName };
+                            
                             if (subject.Specialization && subject.Specialization.length > 0) {
-                                subject.Specialization.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
+                                 const relevantSpecs = selectedSpecs.length > 0
+                                    ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
+                                    : subject.Specialization;
+
+                                relevantSpecs.forEach(spec => {
+                                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                                });
                             } else {
                                 allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
                             }
@@ -1002,7 +1113,7 @@
                     }
                 }
             }
-            if (allExams.length === 0) { notify('No exams scheduled to generate a PDF.', 'error'); return; }
+            if (allExams.length === 0) { notify('No exams scheduled for the selected filters to generate a PDF.', 'error'); return; }
             const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) acc[exam.group] = []; acc[exam.group].push(exam); return acc; }, {});
              for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
             const { jsPDF } = window.jspdf;
@@ -1013,15 +1124,10 @@
             for (const courseName of sortedCourses) {
                 if (!isFirstPage) doc.addPage();
                 
-                if (logoDataURL) {
-                    // Centered logo better and adjusted aspect ratio
-                    doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
-                }
-
-                doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.text(UNIVERSITY_NAME, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
-                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY', doc.internal.pageSize.getWidth() / 2, 27, { align: 'center' });
+                if (logoDataURL) addPdfHeader(doc, logoDataURL);
+                
                 const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
-                doc.text(`${academicSession} SEMESTER ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
+                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
                 doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(197, 48, 48); doc.text(`${state.examDetails.type} TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' }); doc.setTextColor(0, 0, 0);
                 
                 let startY = 50;
@@ -1086,21 +1192,13 @@
                 }
                 isFirstPageOfDocument = false;
                 
-                if (logoDataURL) {
-                     // Centered logo better and adjusted aspect ratio
-                    doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
-                }
-                doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
-                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('SCHOOL OF COMPUTER SCIENCE ENGINEERING & TECHNOLOGY', doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
-                
-                doc.setLineWidth(0.5);
-                doc.line(14, 32, doc.internal.pageSize.getWidth() - 14, 32);
+                if (logoDataURL) addPdfHeader(doc, logoDataURL);
 
-                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${state.examDetails.type} - Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${state.examDetails.type} - Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
                 
                 doc.setFontSize(10);
-                doc.text(`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`, 14, 48);
-                doc.text(`Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`, doc.internal.pageSize.getWidth() - 14, 48, { align: 'right' });
+                doc.text(`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`, 14, 42);
+                doc.text(`Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`, doc.internal.pageSize.getWidth() - 14, 42, { align: 'right' });
 
                 const blocksByCourse = blocksInPhase.reduce((acc, block) => {
                     const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
@@ -1110,7 +1208,7 @@
                     return acc;
                 }, {});
 
-                let startY = 55;
+                let startY = 50;
                 const sortedCourses = Object.keys(blocksByCourse).sort();
 
                 for (const courseName of sortedCourses) {
@@ -1132,7 +1230,7 @@
                     if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
                         doc.addPage();
                         startY = 15;
-                    } else if (startY > 55) {
+                    } else if (startY > 50) {
                         startY += 5;
                     }
 
@@ -1244,21 +1342,17 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             
-            if (logoDataURL) {
-                // Centered logo better and adjusted aspect ratio
-                doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
-            }
-            doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
-            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
-            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 31, { align: 'center' });
+            if (logoDataURL) addPdfHeader(doc, logoDataURL);
+
+            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 26, { align: 'center' });
             doc.autoTable({
                 head: head,
                 body: body,
-                startY: 38,
+                startY: 32,
                 theme: 'grid',
                 styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
                 headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
-                // Improved row height by letting it be automatic
                 bodyStyles: { lineWidth: 0.1 },
             });
             doc.save(`${state.examName}_Duty_Sheet_Landscape.pdf`);
@@ -1279,21 +1373,17 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            if (logoDataURL) {
-                // Centered logo better and adjusted aspect ratio
-                doc.addImage(logoDataURL, 'PNG', 14, 12, 40, 12);
-            }
+            if (logoDataURL) addPdfHeader(doc, logoDataURL);
 
-            doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('ITM (SLS) BARODA UNIVERSITY', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
-            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
-            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 31, { align: 'center' });
+            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 41, { align: 'center' });
 
             const tableData = assignedFaculty.map(([name, count]) => [name, count]);
 
             doc.autoTable({
                 head: [['Faculty Name', 'Total Duties']],
                 body: tableData,
-                startY: 40,
+                startY: 48,
                 theme: 'grid',
                 headStyles: { fillColor: [55, 65, 81], textColor: [255, 255, 255], fontStyle: 'bold' },
                 columnStyles: { 1: { halign: 'center' } }
@@ -1560,6 +1650,27 @@
             render();
         }
 
+        function showConfirmationModal(title, message, onConfirm) {
+            state.modal = {
+                visible: true,
+                title: title,
+                content: `<div class="p-6">
+                            <p class="text-gray-600">${message}</p>
+                            <div class="mt-6 flex justify-end gap-3">
+                                <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                                <button type="button" id="modal-confirm-btn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Confirm</button>
+                            </div>
+                          </div>`
+            };
+            render();
+            // Add a one-time event listener for the confirm button
+            $('#modal-confirm-btn').addEventListener('click', () => {
+                onConfirm();
+                state.modal.visible = false;
+                render();
+            }, { once: true });
+        }
+
 
         function showTimetableModal() {
             const timetableContent = generateTimetableHTML();
@@ -1625,20 +1736,44 @@
 
         // --- EVENT HANDLERS & INITIALIZATION ---
         function handleGlobalClick(e) {
-            const stepBtn = e.target.closest('.step-btn'); if(stepBtn && state.currentStep > parseInt(stepBtn.dataset.step)) { state.currentStep = parseInt(stepBtn.dataset.step); render(); }
-            if (e.target.closest('#prev-step')) { state.currentStep--; render(); }
-            if (e.target.closest('#next-step')) { state.currentStep++; render(); }
+            const stepBtn = e.target.closest('.step-btn'); if(stepBtn && state.currentStep > parseInt(stepBtn.dataset.step)) { state.currentStep = parseInt(stepBtn.dataset.step); render(); saveState(); }
+            if (e.target.closest('#prev-step')) { state.currentStep--; render(); saveState(); }
+            if (e.target.closest('#next-step')) { state.currentStep++; render(); saveState(); }
+            if (e.target.closest('#clear-data-btn')) {
+                showConfirmationModal(
+                    'Clear All Data?',
+                    'Are you sure you want to clear all data and start over? This will remove all subjects, rooms, faculty, and schedules.',
+                    () => {
+                        localStorage.removeItem('examflow_state');
+                        location.reload();
+                    }
+                );
+            }
             const toggleBtn = e.target.closest('.btn-toggle');
             if(toggleBtn) {
                 const {type, value} = toggleBtn.dataset;
                 if (type === 'type') { state.examDetails.type = value; }
                 else { const current = state.examDetails[type]; state.examDetails[type] = current.includes(value) ? current.filter(v => v !== value) : [...current, value]; }
-                updateExamName(); render();
+                updateExamName(); render(); saveState();
             }
             if (e.target.closest('#add-subject-btn')) addSubjectManually();
             if (e.target.closest('#add-faculty-btn')) addFaculty();
             const removeFacultyBtn = e.target.closest('.remove-faculty-btn');
-            if (removeFacultyBtn) removeFaculty(removeFacultyBtn.dataset.facultyId);
+            if (removeFacultyBtn) {
+                const facultyId = removeFacultyBtn.dataset.facultyId;
+                const facultyToRemove = state.facultyMaster.find(f => f.id == facultyId);
+                if (facultyToRemove) {
+                    showConfirmationModal('Delete Faculty?', `Are you sure you want to delete ${facultyToRemove.name}? All their assigned duties will also be removed.`, () => {
+                        state.facultyMaster = state.facultyMaster.filter(f => f.id != facultyId);
+                        Object.keys(state.dutyAssignments).forEach(phaseKey => {
+                           Object.keys(state.dutyAssignments[phaseKey]).forEach(room => {
+                               state.dutyAssignments[phaseKey][room] = state.dutyAssignments[phaseKey][room].filter(name => name !== facultyToRemove.name);
+                           });
+                        });
+                        saveState();
+                    });
+                }
+            }
             const dutyMatrixBtn = e.target.closest('.faculty-duty-matrix-btn');
             if(dutyMatrixBtn) showDutyMatrixModal(dutyMatrixBtn.dataset.facultyName);
             const assignFacultyBtn = e.target.closest('.assign-faculty-btn');
@@ -1653,26 +1788,59 @@
                 newDate.setMonth(newDate.getMonth() - 1);
                 state.scheduler.calendarDate = newDate;
                 render(); 
+                saveState();
             }
             if (e.target.closest('#cal-next')) { 
                 const newDate = new Date(state.scheduler.calendarDate);
                 newDate.setMonth(newDate.getMonth() + 1);
                 state.scheduler.calendarDate = newDate;
                 render(); 
+                saveState();
             }
 
             const calDay = e.target.closest('.calendar-day'); if (calDay) addExamDate(calDay.dataset.date);
-            const removeDateBtn = e.target.closest('.remove-date-btn'); if(removeDateBtn) removeExamDate(removeDateBtn.dataset.date);
+            const removeDateBtn = e.target.closest('.remove-date-btn'); if(removeDateBtn) {
+                 const date = removeDateBtn.dataset.date;
+                 showConfirmationModal('Delete All Phases?', `Are you sure you want to remove all scheduled exam phases for ${date}?`, () => {
+                    delete state.schedule[date];
+                    if (state.scheduler.selectedDate === date) {
+                        state.scheduler.selectedDate = null;
+                    }
+                    saveState();
+                 });
+            }
             const addPhaseBtn = e.target.closest('.add-phase-btn'); if(addPhaseBtn) showAddPhaseModal(addPhaseBtn.dataset.date);
-            const removePhaseBtn = e.target.closest('.remove-phase-btn'); if(removePhaseBtn) removePhase(removePhaseBtn.dataset.date, removePhaseBtn.dataset.phaseId);
+            const removePhaseBtn = e.target.closest('.remove-phase-btn'); if(removePhaseBtn) {
+                 const { date, phaseId } = removePhaseBtn.dataset;
+                 showConfirmationModal('Delete Phase?', 'Are you sure you want to delete this exam phase? All subjects scheduled within it will be unscheduled.', () => {
+                    removePhase(date, phaseId);
+                 });
+            }
             const copyPhaseBtn = e.target.closest('.copy-phases-btn'); if(copyPhaseBtn) copyPhases(copyPhaseBtn.dataset.date);
             if(e.target.closest('#publish-timetable-btn')) showTimetableModal();
             if(e.target.closest('#print-timetable-btn')) generateTimetablePDF();
             if (e.target.closest('#add-room-btn')) addRoom();
             const removeRoomBtn = e.target.closest('.remove-room-btn');
-            if (removeRoomBtn) removeRoom(removeRoomBtn.dataset.roomId);
+            if (removeRoomBtn) {
+                const roomId = removeRoomBtn.dataset.roomId;
+                const room = state.roomsMaster.find(r => r.id === roomId);
+                if (room) {
+                    showConfirmationModal('Delete Room?', `Are you sure you want to delete room "${room.name}"?`, () => {
+                        state.roomsMaster = state.roomsMaster.filter(r => r.id !== roomId);
+                        saveState();
+                    });
+                }
+            }
             const removeBlockBtn = e.target.closest('.remove-block-btn');
-            if (removeBlockBtn) handleRemoveBlock(removeBlockBtn.dataset.phaseKey, removeBlockBtn.dataset.blockId);
+            if (removeBlockBtn) {
+                const { phaseKey, blockId } = removeBlockBtn.dataset;
+                showConfirmationModal('Delete Block?', 'Are you sure you want to delete this seating block?', () => {
+                     if(state.allotment[phaseKey]) {
+                        state.allotment[phaseKey] = state.allotment[phaseKey].filter(b => b.id !== blockId);
+                        saveState();
+                    }
+                });
+            }
             const pasteBlocksBtn = e.target.closest('.paste-blocks-btn');
             if (pasteBlocksBtn) {
                 const { targetKey, sourceKey } = pasteBlocksBtn.dataset;
@@ -1715,6 +1883,7 @@
                     notify(`Seating plan successfully repeated with updated subjects.`, 'success');
                 }
                 render();
+                saveState();
             }
             if (e.target.closest('#download-seating-pdf')) generateSeatingArrangementPDF();
             if (e.target.closest('#preview-duty-pdf')) showDutySheetModal();
@@ -1730,6 +1899,7 @@
                 if (phase) {
                     phase.subjects = phase.subjects.filter(id => id != subjectId);
                     render();
+                    saveState();
                 }
             }
             const removeDutyBtn = e.target.closest('.remove-duty-btn');
@@ -1738,11 +1908,12 @@
                 if(state.dutyAssignments[phaseKey] && state.dutyAssignments[phaseKey][room]) {
                     state.dutyAssignments[phaseKey][room] = state.dutyAssignments[phaseKey][room].filter(facName => facName !== name);
                     render();
+                    saveState();
                 }
             }
         }
         function handleGlobalChange(e) {
-            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') { state.examDetails[e.target.id.split('-')[1]] = e.target.value; updateExamName(); render(); }
+            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') { state.examDetails[e.target.id.split('-')[1]] = e.target.value; updateExamName(); render(); saveState(); }
             if (e.target.matches('#subject-file-upload')) { handleFileUpload(e.target.files[0], 'subject'); e.target.value = ''; }
             if (e.target.matches('#room-file-upload')) { handleFileUpload(e.target.files[0], 'room'); e.target.value = ''; }
             if (e.target.matches('#faculty-file-upload')) { handleFileUpload(e.target.files[0], 'faculty'); e.target.value = ''; }
@@ -1766,6 +1937,7 @@
                     state.modal.visible = false;
                     notify('New phase added successfully!', 'success');
                     render();
+                    saveState();
                 } else {
                     notify('Both start and end times are required.', 'error');
                 }
@@ -1786,6 +1958,7 @@
                 
                 state.modal.visible = false;
                 render();
+                saveState();
             }
             if (e.target.id === 'assign-subject-form') {
                 const { date, phaseId } = e.target.dataset;
@@ -1801,12 +1974,15 @@
                 }
                 state.modal.visible = false;
                 render();
+                saveState();
             }
         }
 
         function init() {
+            loadState(); // Load state first
             $('#university-name').textContent = UNIVERSITY_NAME;
-            state.examName = `${state.examDetails.session} - ${state.examDetails.academicYear}`;
+            $('#school-name').textContent = SCHOOL_NAME;
+            state.examName = state.examName || `${state.examDetails.session} - ${state.examDetails.academicYear}`;
             render();
             
             const appContainer = $('#app-container');
@@ -1818,6 +1994,7 @@
             appContainer.addEventListener('input', e => {
                 if (e.target.id === 'exam-name') {
                     state.examName = e.target.value; // Update state without re-rendering
+                    saveState(); // Still save on input change
                 } else if (e.target.id === 'scheduler-search') {
                     state.scheduler.searchTerm = e.target.value;
                     const container = $('#unscheduled-list');
@@ -1865,6 +2042,13 @@
                  if (!dropZone || !state.draggedItemId || dropZone.dataset.type !== state.draggedItemType) return;
                 
                 dropZone.classList.remove('drop-zone-active');
+                
+                // Add a temporary success animation
+                dropZone.classList.add('drop-zone-success');
+                setTimeout(() => {
+                    dropZone.classList.remove('drop-zone-success');
+                }, 500);
+
 
                 if (state.draggedItemType === 'subject') {
                     const { date, phaseId } = dropZone.dataset;
@@ -1891,6 +2075,7 @@
                     }
                 }
                 render();
+                saveState();
             });
         }
         window.addEventListener('DOMContentLoaded', init);

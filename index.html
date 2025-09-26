@@ -59,7 +59,7 @@
         <header class="bg-white shadow-md p-4 sticky top-0 z-20">
             <div class="relative flex items-center justify-between max-w-7xl mx-auto mb-4">
                 <div class="flex items-center gap-4">
-                    <img src="site_banner.png" alt="SOCSET Exam Cell Logo" class="h-14">
+                    <img src="https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/site_banner.png" alt="SOCSET Exam Cell Logo" class="h-14">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-800">ExamFlow</h1>
                         <p id="university-name" class="text-sm font-semibold text-gray-600"></p>
@@ -67,18 +67,18 @@
                     </div>
                 </div>
                  <div class="absolute top-0 right-0 flex items-center divide-x divide-gray-300 text-xs">
-                    <button id="save-to-file-btn" class="px-2 text-gray-500 hover:text-blue-600 hover:underline">Save Data</button>
-                    <label for="load-from-file-input" class="px-2 text-gray-500 hover:text-green-600 hover:underline cursor-pointer">Load Data</label>
-                    <input type="file" id="load-from-file-input" class="hidden" accept=".json">
-                    <button id="clear-data-btn" class="pl-2 text-gray-500 hover:text-red-600 hover:underline">Clear All</button>
-                </div>
+                     <button id="save-to-file-btn" class="px-2 text-gray-500 hover:text-blue-600 hover:underline">Save Data</button>
+                     <label for="load-from-file-input" class="px-2 text-gray-500 hover:text-green-600 hover:underline cursor-pointer">Load Data</label>
+                     <input type="file" id="load-from-file-input" class="hidden" accept=".json">
+                     <button id="clear-data-btn" class="pl-2 text-gray-500 hover:text-red-600 hover:underline">Clear All</button>
+                 </div>
             </div>
             <div id="stepper-container" class="max-w-5xl mx-auto"></div>
         </header>
 
         <!-- Main Content -->
         <main class="flex-1 p-4 md:p-8 overflow-y-auto">
-            <div id="notification-container" class="fixed top-24 right-5 z-50"></div>
+            <div id="notification-container" class="fixed top-24 right-5 z-[100]"></div>
             <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg min-h-full flex flex-col max-w-7xl mx-auto">
                 <div id="step-content-container" class="flex-grow"></div>
                 <div class="mt-8 flex justify-between items-center pt-6 border-t-2 border-gray-100">
@@ -101,6 +101,8 @@
             Trash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>`,
             Printer: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
             Paste: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>`,
+            Copy: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+            Edit: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
             X: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
             XClose: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
             Users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
@@ -124,6 +126,7 @@
             facultyMaster: [],
             dutyAssignments: {},
             allotment: {}, 
+            copiedAllotment: null, // { sourceKey: string, blocks: [] }
             scheduler: {
                 searchTerm: '',
                 calendarDate: new Date(),
@@ -262,10 +265,10 @@
             }
             container.innerHTML = `<div>${content}</div>`;
              if (state.currentStep === 4) {
-                document.querySelectorAll('.add-block-form [data-action="update-specializations"]').forEach(el => {
-                   handleSubjectChange(el);
-                });
-            }
+                 document.querySelectorAll('.add-block-form [data-action="update-specializations"]').forEach(el => {
+                    handleSubjectChange(el);
+                 });
+             }
         }
 
         // --- STEP 1: Exam Details ---
@@ -455,8 +458,8 @@
                         ${dayCells}
                     </div>
                      <div class="text-xs text-gray-500 mt-2 flex items-center justify-center gap-4">
-                        <span class="flex items-center gap-1.5"><div class="w-2 h-2 bg-green-500 rounded-full"></div>Scheduled</span>
-                    </div>
+                         <span class="flex items-center gap-1.5"><div class="w-2 h-2 bg-green-500 rounded-full"></div>Scheduled</span>
+                     </div>
                 </div>`;
         }
 
@@ -507,10 +510,10 @@
                         </div>
                          <div class="flex items-center gap-2">
                              <button class="mobile-only assign-subject-btn text-xs bg-red-100 text-red-700 hover:bg-red-200 font-semibold p-2 rounded-md flex items-center gap-1" data-date="${date}" data-phase-id="${phaseId}">
-                                Assign Subjects
-                            </button>
+                                 Assign Subjects
+                             </button>
                             <button data-date="${date}" data-phase-id="${phaseId}" class="remove-phase-btn text-gray-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-100 transition-colors">${ICONS.Trash}</button>
-                        </div>
+                         </div>
                     </div>
                     <div class="drop-zone min-h-[80px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-date="${date}" data-phase-id="${phaseId}" data-type="subject">
                         ${phase.subjects.length > 0 ? `
@@ -530,18 +533,17 @@
                                 <span>Drop subjects here</span>
                             </div>
                              <div class="text-center text-gray-400 h-full py-5 pointer-events-none mobile-only">
-                                <p>No subjects assigned.</p>
-                            </div>
+                                 <p>No subjects assigned.</p>
+                             </div>
                         `}
                     </div>
                 </div>`;
         }
         
-        // --- STEP 4: Allotment & Rooms ---
+        // --- STEP 4: Allotment & Rooms (IMPROVED) ---
         function renderStep4_AllotmentAndRooms() {
             let allotmentHtml = '';
             const sortedDates = Object.keys(state.schedule).sort();
-            const phaseKeysWithBlocks = Object.keys(state.allotment).filter(key => state.allotment[key].length > 0).sort();
 
             for (const date of sortedDates) {
                 if (!state.schedule[date] || state.schedule[date].length === 0) continue;
@@ -551,7 +553,8 @@
                     if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
                     const subjectsInPhase = phase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
                     
-                    const lastSessionKey = phaseKeysWithBlocks.filter(k => k !== phaseKey).pop();
+                    const phaseHasBlocks = state.allotment[phaseKey] && state.allotment[phaseKey].length > 0;
+                    const isCopiedSource = state.copiedAllotment && state.copiedAllotment.sourceKey === phaseKey;
 
                     allotmentHtml += `
                         <div class="bg-gray-50 p-5 rounded-xl border mb-6">
@@ -561,7 +564,16 @@
                                     <p class="text-sm text-red-700 font-semibold">${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}</p>
                                 </div>
                                 <div class="flex items-center gap-4 mt-3 md:mt-0">
-                                    ${lastSessionKey ? `<button class="paste-blocks-btn text-sm font-semibold text-red-600 hover:underline flex items-center gap-1" data-target-key="${phaseKey}" data-source-key="${lastSessionKey}">${ICONS.Paste} Repeat Last Seating Plan</button>` : ''}
+                                   ${phaseHasBlocks ? `
+                                        <button class="copy-blocks-btn text-sm font-semibold flex items-center gap-1.5 ${isCopiedSource ? 'text-green-600' : 'text-blue-600 hover:underline'}" data-source-key="${phaseKey}">
+                                            ${isCopiedSource ? ICONS.CheckCircle : ICONS.Copy} ${isCopiedSource ? 'Copied!' : 'Copy Seating Plan'}
+                                        </button>
+                                   ` : ''}
+                                   ${state.copiedAllotment ? `
+                                        <button class="paste-blocks-btn text-sm font-semibold text-red-600 hover:underline flex items-center gap-1.5" data-target-key="${phaseKey}">
+                                            ${ICONS.Paste} Paste Seating Plan
+                                        </button>
+                                   ` : ''}
                                 </div>
                             </div>
                             
@@ -677,7 +689,7 @@
                             <th class="p-2 font-semibold">Room</th>
                             <th class="p-2 font-semibold">Subject</th>
                             <th class="p-2 font-semibold">Seat Range</th>
-                            <th class="p-2 font-semibold"></th>
+                            <th class="p-2 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -697,7 +709,8 @@
                                     <td class="p-2">${subjectText}</td>
                                     <td class="p-2 font-mono">${block.seatRange}</td>
                                     <td class="p-2 text-right">
-                                        <button class="remove-block-btn text-gray-400 hover:text-red-600" data-phase-key="${phaseKey}" data-block-id="${block.id}">${ICONS.Trash}</button>
+                                        <button class="edit-block-btn text-gray-400 hover:text-blue-600 p-1" data-phase-key="${phaseKey}" data-block-id="${block.id}" title="Edit Block">${ICONS.Edit}</button>
+                                        <button class="remove-block-btn text-gray-400 hover:text-red-600 p-1" data-phase-key="${phaseKey}" data-block-id="${block.id}" title="Delete Block">${ICONS.Trash}</button>
                                     </td>
                                 </tr>
                             `;
@@ -707,7 +720,7 @@
             `;
         }
         
-        // --- STEP 5: Duty Assignment (New Drag & Drop UI) ---
+        // --- STEP 5: Duty Assignment (IMPROVED) ---
         function getFacultyDutyCount() {
             const counts = {};
             state.facultyMaster.forEach(f => counts[f.name] = 0);
@@ -819,11 +832,11 @@
         }
 
         function renderDutyRoomsForPhase(phaseKey) {
-            const blocks = state.allotment[phaseKey] || [];
+            const blocksInPhase = state.allotment[phaseKey] || [];
             
-            const roomsInPhase = [...new Set(blocks.map(b => b.roomName))];
+            const roomsInPhase = [...new Set(blocksInPhase.map(b => b.roomName))];
              const sortedRoomsMeta = roomsInPhase.map(roomName => {
-                const firstBlock = blocks.find(b => b.roomName === roomName);
+                const firstBlock = blocksInPhase.find(b => b.roomName === roomName);
                 return { roomName, blockNo: firstBlock.blockNo };
             }).sort((a, b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
 
@@ -832,6 +845,7 @@
             
             return sortedRoomsMeta.map(({ roomName }) => {
                 const assignedFaculty = state.dutyAssignments[phaseKey]?.[roomName] || [];
+                const blocksInThisRoom = blocksInPhase.filter(b => b.roomName === roomName);
                 
                 return `
                     <div class="bg-white p-4 rounded-lg border">
@@ -841,23 +855,41 @@
                                 Assign Faculty
                             </button>
                         </div>
-                        <div class="drop-zone mt-2 min-h-[60px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-phase-key="${phaseKey}" data-room="${roomName}" data-type="faculty">
+                        
+                        <!-- Block Details -->
+                        <div class="mt-3 space-y-2 text-xs border-t pt-3">
+                            ${blocksInThisRoom.map(block => {
+                                const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                                if (!subject) return '';
+                                let subjectInfo = `${subject.Branch} - ${subject.Semester}`;
+                                if (block.specialization) subjectInfo += ` (${block.specialization})`;
+                                return `
+                                    <div class="p-2 bg-gray-50 rounded-md border">
+                                        <p class="font-bold text-gray-800">Block ${block.blockNo}: <span class="font-normal">${subject.SubjectName} (${subject.SubjectCode})</span></p>
+                                        <p class="text-gray-600">${subjectInfo}</p>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- Drop Zone -->
+                        <div class="drop-zone mt-3 min-h-[60px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-phase-key="${phaseKey}" data-room="${roomName}" data-type="faculty">
                              ${assignedFaculty.length > 0 ? `
-                                <div class="flex flex-wrap gap-2">
+                                 <div class="flex flex-wrap gap-2">
                                      ${assignedFaculty.map(name => `
                                         <span class="inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                             ${name}
                                             <button class="remove-duty-btn" data-phase-key="${phaseKey}" data-room="${roomName}" data-name="${name}">${ICONS.X}</button>
                                         </span>`).join('')}
-                                </div>
+                                 </div>
                              ` : `
-                                <div class="text-center text-gray-400 flex items-center justify-center h-full py-5 pointer-events-none desktop-only">
-                                    <svg class="w-6 h-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
-                                    <span>Drop faculty here to assign duty</span>
-                                </div>
-                                 <div class="text-center text-gray-400 h-full py-5 pointer-events-none mobile-only">
-                                    <p>No faculty assigned.</p>
-                                </div>
+                                 <div class="text-center text-gray-400 flex items-center justify-center h-full py-5 pointer-events-none desktop-only">
+                                     <svg class="w-6 h-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+                                     <span>Drop faculty here to assign duty</span>
+                                 </div>
+                                  <div class="text-center text-gray-400 h-full py-5 pointer-events-none mobile-only">
+                                     <p>No faculty assigned.</p>
+                                  </div>
                              `}
                         </div>
                     </div>
@@ -950,7 +982,7 @@
             const prevDate = sortedDatesWithContent.length > 0 ? sortedDatesWithContent[sortedDatesWithContent.length - 1] : null;
             if (prevDate) {
                  if (!state.schedule[date]) {
-                    state.schedule[date] = [];
+                     state.schedule[date] = [];
                  }
                 const phasesToCopy = JSON.parse(JSON.stringify(state.schedule[prevDate]));
                 state.schedule[date] = phasesToCopy.map(p => ({ ...p, id: `phase_${Date.now()}_${Math.random()}`, subjects: [] }));
@@ -1091,7 +1123,7 @@
 
         async function generateTimetablePDF() {
             notify('Generating PDF, please wait...', 'success');
-            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
 
             const allExams = [];
@@ -1178,7 +1210,7 @@
             }
             notify('Generating Seating Arrangement PDF...', 'success');
 
-            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
 
             const { jsPDF } = window.jspdf;
@@ -1217,19 +1249,19 @@
                 const sortedCourses = Object.keys(blocksByCourse).sort();
 
                 for (const courseName of sortedCourses) {
-                     const blocksInCourse = blocksByCourse[courseName].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
-                     
-                     const body = blocksInCourse.map(block => {
-                        const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
-                        let subjectInfo = 'Unknown Subject';
-                         if (subject) {
-                            subjectInfo = `${subject.SubjectName} (${subject.Semester})`;
-                            if (block.specialization) {
-                                subjectInfo += ` - ${block.specialization}`;
+                       const blocksInCourse = blocksByCourse[courseName].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
+                       
+                       const body = blocksInCourse.map(block => {
+                            const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                            let subjectInfo = 'Unknown Subject';
+                             if (subject) {
+                                subjectInfo = `${subject.SubjectName} (${subject.Semester})`;
+                                if (block.specialization) {
+                                    subjectInfo += ` - ${block.specialization}`;
+                                }
                             }
-                        }
-                        return [block.blockNo, block.roomName, subjectInfo, block.seatRange];
-                     });
+                            return [block.blockNo, block.roomName, subjectInfo, block.seatRange];
+                       });
 
                     const tableHeight = (body.length + 2) * 8;
                     if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
@@ -1272,7 +1304,7 @@
                 return;
             }
             notify('Generating Duty Sheet PDF...', 'success');
-            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
         
             const dataByRoomDatePhase = {};
@@ -1399,7 +1431,7 @@
                 return;
             }
 
-            const logoDataURL = await imageToBase64('itmbu_logo.png');
+            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
 
             const { jsPDF } = window.jspdf;
@@ -1491,7 +1523,7 @@
                 sortedDates.forEach(date => {
                     const phases = phasesByDate[date] || [];
                      if (phases.length === 0) {
-                        tableHTML += `<td class="border p-2"></td>`;
+                         tableHTML += `<td class="border p-2"></td>`;
                     } else {
                         phases.forEach(phaseLabel => {
                             const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
@@ -1580,29 +1612,29 @@
             let content;
             if (assignedFaculty.length > 0) {
                  content = `
-                    <div class="p-4 border-b flex justify-end bg-gray-50 rounded-t-lg">
-                        <button id="download-load-matrix-pdf" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
-                            ${ICONS.Printer}<span>Download PDF</span>
-                        </button>
-                    </div>
-                    <div class="p-6">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="p-3 font-semibold">Faculty Name</th>
-                                    <th class="p-3 font-semibold text-center">Total Duties</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${assignedFaculty.map(([name, count]) => `
-                                    <tr class="border-t">
-                                        <td class="p-3">${name}</td>
-                                        <td class="p-3 text-center font-bold">${count}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>`;
+                     <div class="p-4 border-b flex justify-end bg-gray-50 rounded-t-lg">
+                         <button id="download-load-matrix-pdf" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                             ${ICONS.Printer}<span>Download PDF</span>
+                         </button>
+                     </div>
+                     <div class="p-6">
+                         <table class="w-full text-sm text-left">
+                             <thead class="bg-gray-100">
+                                 <tr>
+                                     <th class="p-3 font-semibold">Faculty Name</th>
+                                     <th class="p-3 font-semibold text-center">Total Duties</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 ${assignedFaculty.map(([name, count]) => `
+                                     <tr class="border-t">
+                                         <td class="p-3">${name}</td>
+                                         <td class="p-3 text-center font-bold">${count}</td>
+                                     </tr>
+                                 `).join('')}
+                             </tbody>
+                         </table>
+                     </div>`;
             } else {
                 content = `<p class="p-6 text-center text-gray-500">No duties have been assigned to any faculty yet.</p>`;
             }
@@ -1718,8 +1750,8 @@
         function renderModal() {
              const container = $('#modal-container');
             if(!state.modal.visible) { container.innerHTML = ''; return; }
-            const maxWidth = state.modal.title.includes('Timetable') ? 'max-w-5xl' : (state.modal.title.includes('Duty Sheet') ? 'max-w-7xl' : 'max-w-lg');
-            container.innerHTML = `<div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity"><div class="bg-white rounded-lg shadow-xl p-0 w-full ${maxWidth} max-h-[90vh] flex flex-col scale-95 animate-modal-in"><div class="flex justify-between items-center p-5 border-b"><h3 class="text-xl font-bold text-gray-800">${state.modal.title}</h3><button id="modal-close-btn" class="p-2 rounded-full hover:bg-gray-200">${ICONS.XClose}</button></div><div class="overflow-auto">${state.modal.content}</div></div></div>`;
+            const maxWidth = state.modal.title.includes('Timetable') ? 'max-w-5xl' : (state.modal.title.includes('Duty Sheet') ? 'max-w-7xl' : 'max-w-2xl');
+            container.innerHTML = `<div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 z-[99] flex justify-center items-center p-4 transition-opacity"><div class="bg-white rounded-lg shadow-xl p-0 w-full ${maxWidth} max-h-[90vh] flex flex-col scale-95 animate-modal-in"><div class="flex justify-between items-center p-5 border-b"><h3 class="text-xl font-bold text-gray-800">${state.modal.title}</h3><button id="modal-close-btn" class="p-2 rounded-full hover:bg-gray-200">${ICONS.XClose}</button></div><div class="overflow-auto">${state.modal.content}</div></div></div>`;
             
             // Add event listener for modal search after it's rendered
             if(state.modal.title.includes('Assign Faculty')) {
@@ -1750,7 +1782,7 @@
         function handleSubjectChange(element) {
             const subjectId = element.value;
             const subject = state.subjectsMasterList.find(s => s.id == subjectId);
-            const form = element.closest('.add-block-form');
+            const form = element.closest('form');
             if (!form) return;
             const specContainer = form.querySelector('.specialization-container');
             
@@ -1784,6 +1816,67 @@
                 console.error('Failed to save state to file:', error);
                 notify('Could not save data to file.', 'error');
             }
+        }
+        
+        function showEditBlockModal(phaseKey, blockId) {
+            const block = state.allotment[phaseKey]?.find(b => b.id === blockId);
+            if (!block) return;
+            const [date, phaseId] = phaseKey.split('|');
+            const phase = state.schedule[date]?.find(p => p.id === phaseId);
+            const subjectsInPhase = phase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+            const subjectOfBlock = subjectsInPhase.find(s => s.id == block.subjectId);
+
+            let specializationHtml = '';
+            if (subjectOfBlock && subjectOfBlock.Specialization && subjectOfBlock.Specialization.length > 0) {
+                 specializationHtml = `
+                    <div class="specialization-container md:col-span-6">
+                        <label class="text-sm font-medium text-gray-700">Specialization</label>
+                        <select name="specialization" class="block w-full p-2 border rounded-md text-sm mt-1">
+                            ${subjectOfBlock.Specialization.map(spec => `<option value="${spec}" ${block.specialization === spec ? 'selected' : ''}>${spec}</option>`).join('')}
+                        </select>
+                    </div>`;
+            }
+
+
+            const content = `
+                <form id="edit-block-form" data-phase-key="${phaseKey}" data-block-id="${blockId}" class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-12">
+                             <label class="text-sm font-medium text-gray-700">Subject</label>
+                            <select name="subjectId" data-action="update-specializations" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                ${subjectsInPhase.map(s => `<option value="${s.id}" ${s.id == block.subjectId ? 'selected' : ''}>${s.SubjectName} (${s.Branch} - ${s.Semester})</option>`).join('')}
+                            </select>
+                        </div>
+                        ${specializationHtml}
+                        <div class="md:col-span-6">
+                            <label class="text-sm font-medium text-gray-700">Block No.</label>
+                            <input type="text" name="blockNo" required value="${block.blockNo}" class="block w-full p-2 border rounded-md text-sm mt-1">
+                        </div>
+                        <div class="md:col-span-6">
+                            <label class="text-sm font-medium text-gray-700">Room</label>
+                            <select name="roomName" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                ${state.roomsMaster.map(r => `<option value="${r.name}" ${r.name === block.roomName ? 'selected' : ''}>${r.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="md:col-span-6">
+                            <label class="text-sm font-medium text-gray-700">Seat Range</label>
+                            <input type="text" name="seatRange" required value="${block.seatRange}" class="block w-full p-2 border rounded-md text-sm mt-1">
+                        </div>
+                    </div>
+                    <div class="pt-6 flex justify-end gap-3">
+                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Save Changes</button>
+                    </div>
+                </form>
+            `;
+            state.modal = {
+                visible: true,
+                title: 'Edit Block',
+                content: content
+            };
+            render();
+            // Manually trigger change to render specializations if needed
+            handleSubjectChange($('#edit-block-form [data-action="update-specializations"]'));
         }
 
         // --- EVENT HANDLERS & INITIALIZATION ---
@@ -1868,7 +1961,7 @@
             const removePhaseBtn = e.target.closest('.remove-phase-btn'); if(removePhaseBtn) {
                  const { date, phaseId } = removePhaseBtn.dataset;
                  showConfirmationModal('Delete Phase?', 'Are you sure you want to delete this exam phase? All subjects scheduled within it will be unscheduled.', () => {
-                    removePhase(date, phaseId);
+                     removePhase(date, phaseId);
                  });
             }
             const copyPhaseBtn = e.target.closest('.copy-phases-btn'); if(copyPhaseBtn) copyPhases(copyPhaseBtn.dataset.date);
@@ -1898,11 +1991,23 @@
                     }
                 });
             }
+            const editBlockBtn = e.target.closest('.edit-block-btn');
+            if (editBlockBtn) {
+                const { phaseKey, blockId } = editBlockBtn.dataset;
+                showEditBlockModal(phaseKey, blockId);
+            }
+            const copyBlocksBtn = e.target.closest('.copy-blocks-btn');
+            if (copyBlocksBtn) {
+                const sourceKey = copyBlocksBtn.dataset.sourceKey;
+                const sourceBlocks = JSON.parse(JSON.stringify(state.allotment[sourceKey] || []));
+                state.copiedAllotment = { sourceKey, blocks: sourceBlocks };
+                notify(`Copied ${sourceBlocks.length} blocks. Go to another session and click 'Paste'.`, 'success');
+                render(); // Re-render to show "Copied!" status
+            }
             const pasteBlocksBtn = e.target.closest('.paste-blocks-btn');
-            if (pasteBlocksBtn) {
-                const { targetKey, sourceKey } = pasteBlocksBtn.dataset;
-                const sourceBlocks = state.allotment[sourceKey];
-                if (!sourceBlocks) return;
+            if (pasteBlocksBtn && state.copiedAllotment) {
+                const targetKey = pasteBlocksBtn.dataset.targetKey;
+                const sourceBlocks = state.copiedAllotment.blocks;
                 const [targetDate, targetPhaseId] = targetKey.split('|');
                 const targetPhase = state.schedule[targetDate]?.find(p => p.id === targetPhaseId);
                 if (!targetPhase) return;
@@ -1935,9 +2040,9 @@
                 });
                 state.allotment[targetKey] = newBlocks;
                 if (unmappedCount > 0) {
-                    notify(`${newBlocks.length} blocks repeated. ${unmappedCount} blocks could not be matched to a subject and were skipped.`, 'success');
+                    notify(`${newBlocks.length} blocks pasted. ${unmappedCount} blocks could not be matched to a subject and were skipped.`, 'warning');
                 } else {
-                    notify(`Seating plan successfully repeated with updated subjects.`, 'success');
+                    notify(`Seating plan successfully pasted with updated subjects.`, 'success');
                 }
                 render();
                 saveState();
@@ -1982,6 +2087,25 @@
             e.preventDefault();
             if (e.target.matches('.add-block-form')) {
                 handleAddBlock(e.target, e.target.dataset.phaseKey);
+            }
+            if (e.target.id === 'edit-block-form') {
+                 const { phaseKey, blockId } = e.target.dataset;
+                 const formData = new FormData(e.target);
+                 const blockIndex = state.allotment[phaseKey].findIndex(b => b.id === blockId);
+                 if (blockIndex > -1) {
+                    state.allotment[phaseKey][blockIndex] = {
+                        ...state.allotment[phaseKey][blockIndex],
+                        subjectId: formData.get('subjectId'),
+                        specialization: formData.get('specialization') || null,
+                        roomName: formData.get('roomName'),
+                        seatRange: formData.get('seatRange'),
+                        blockNo: formData.get('blockNo'),
+                    };
+                    state.modal.visible = false;
+                    notify('Block updated successfully!', 'success');
+                    render();
+                    saveState();
+                 }
             }
             if (e.target.id === 'add-phase-form') {
                 const form = e.target;
@@ -2173,6 +2297,3 @@
     </script>
 </body>
 </html>
-
-
-

@@ -138,7 +138,7 @@
             modal: { visible: false, title: '', content: '' }
         };
 
-        const UNIVERSITY_NAME = 'ITM (SLS) Baroda University';
+        const UNIVERSITY_NAME = 'ITM SLS Baroda University';
         const SCHOOL_NAME = 'School of Computer Science, Engineering and Technology';
         const EXAM_TYPES = ["CET 1", "CET 2", "MST", "REMEDIAL"];
         const BRANCHES = ["DIPLOMA", "BCA", "MCA", "BTECH"];
@@ -1084,23 +1084,32 @@
 
         // --- PDF & Modal & DYNAMIC HELPERS ---
         
-        function addPdfHeader(doc, logoDataURL) {
-            const logoWidth = 35;
-            const logoHeight = 12; 
-            const logoX = 14;
-            const logoY = 10;
-            doc.addImage(logoDataURL, 'PNG', logoX, logoY, logoWidth, logoHeight);
+        function addPdfHeader(doc, bannerDataURL, state) {
+            const bannerWidth = 70; // Banner is wider than the logo
+            const bannerHeight = 15;
+            const bannerX = 14;
+            const bannerY = 10;
+            const rightMargin = doc.internal.pageSize.getWidth() - 14;
 
-            doc.setFontSize(16);
+            // Left side: Banner Image
+            if (bannerDataURL) {
+                doc.addImage(bannerDataURL, 'PNG', bannerX, bannerY, bannerWidth, bannerHeight);
+            }
+
+            // Right side: Exam Info
+            doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text(UNIVERSITY_NAME, logoX + logoWidth + 5, logoY + 5);
-
+            doc.text('SOCSET', rightMargin, bannerY + 4, { align: 'right' });
+            
+            const examNameString = `${state.examName}`; // Use the full generated name
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.text(SCHOOL_NAME.toUpperCase(), logoX + logoWidth + 5, logoY + 10);
-            
+            doc.text(examNameString, rightMargin, bannerY + 9, { align: 'right' });
+
+            // Bottom line
             doc.setLineWidth(0.5);
-            doc.line(14, logoY + logoHeight + 4, doc.internal.pageSize.getWidth() - 14, logoY + logoHeight + 4);
+            doc.setDrawColor(0); // Black color for the line
+            doc.line(14, bannerY + bannerHeight + 4, doc.internal.pageSize.getWidth() - 14, bannerY + bannerHeight + 4);
         }
 
         function generateTimetableHTML() {
@@ -1167,8 +1176,8 @@
 
         async function generateTimetablePDF() {
             notify('Generating PDF, please wait...', 'success');
-            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
-            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+            const bannerDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/site_banner.png');
+            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
 
             const allExams = [];
             const currentlyFilteredSubjects = getFilteredSubjects();
@@ -1223,13 +1232,13 @@
             for (const courseName of sortedCourses) {
                 if (!isFirstPage) doc.addPage();
                 
-                if (logoDataURL) addPdfHeader(doc, logoDataURL);
+                addPdfHeader(doc, bannerDataURL, state);
                 
                 const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
-                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
-                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(197, 48, 48); doc.text(`${state.examDetails.type.join(' & ')} TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' }); doc.setTextColor(0, 0, 0);
+                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER`, doc.internal.pageSize.getWidth() / 2, 38, { align: 'center' });
+                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0,0,0); doc.text(`TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
                 
-                let startY = 50;
+                let startY = 55;
                 const specializationGroups = examsByCourse[courseName];
                 const sortedGroups = Object.keys(specializationGroups).sort();
                 for (const groupName of sortedGroups) {
@@ -1237,7 +1246,24 @@
                     if (startY + tableHeight > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); startY = 20; }
                     const tableData = specializationGroups[groupName].map(exam => { const formattedDate = new Date(exam.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); return [`${formattedDate}\n${exam.time}`, exam.code, exam.name]; });
                     doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text(groupName, 14, startY);
-                    doc.autoTable({ startY: startY + 6, head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME']], body: tableData, theme: 'grid', headStyles: { fillColor: [229, 231, 235], textColor: [17, 24, 39], fontStyle: 'bold' }, styles: { cellPadding: 2.5, fontSize: 9 }, columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 40 } } });
+                    doc.autoTable({ 
+                        startY: startY + 6, 
+                        head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME']], 
+                        body: tableData, 
+                        theme: 'grid', 
+                        headStyles: { 
+                            fillColor: [255, 255, 255], 
+                            textColor: [0, 0, 0], 
+                            lineColor: [0, 0, 0], 
+                            fontStyle: 'bold' 
+                        }, 
+                        styles: { 
+                            cellPadding: 2.5, 
+                            fontSize: 9, 
+                            lineColor: [0, 0, 0] 
+                        }, 
+                        columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 40 } } 
+                    });
                     startY = doc.autoTable.previous.finalY + 15;
                 }
                 isFirstPage = false;
@@ -1272,8 +1298,8 @@
             }
             notify('Generating Seating Arrangement PDF...', 'success');
 
-            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
-            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+            const bannerDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/site_banner.png');
+            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -1291,9 +1317,9 @@
                 }
                 isFirstPageOfDocument = false;
                 
-                if (logoDataURL) addPdfHeader(doc, logoDataURL);
+                addPdfHeader(doc, bannerDataURL, state);
 
-                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${state.examDetails.type.join(' & ')} - Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
                 
                 doc.setFontSize(10);
                 doc.text(`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`, 14, 42);
@@ -1335,7 +1361,7 @@
 
                     doc.autoTable({
                         startY: startY,
-                        head: [[{ content: `COURSE: ${courseName}`, colSpan: 4, styles: { fillColor: [55, 65, 81], textColor: [255,255,255], fontStyle: 'bold' } }]],
+                        head: [[{ content: `COURSE: ${courseName}`, colSpan: 4, styles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0,0,0] } }]],
                         body: [
                             ['BLOCK NO.', 'ROOM NO.', 'SUBJECT', 'SEAT NUMBER'],
                             ...body
@@ -1343,11 +1369,14 @@
                         theme: 'grid',
                         didParseCell: function(data) {
                             if (data.section === 'body' && data.row.index === 0) {
-                                data.cell.styles.fillColor = '#F3F4F6';
+                                data.cell.styles.fillColor = [255, 255, 255];
+                                data.cell.styles.textColor = [0, 0, 0];
                                 data.cell.styles.fontStyle = 'bold';
                             }
                         },
-                        styles: { cellPadding: 2, fontSize: 9 },
+                        styles: { cellPadding: 2, fontSize: 9, lineColor: [0,0,0] },
+                        headStyles: { lineColor: [0,0,0] },
+                        bodyStyles: { lineColor: [0,0,0] },
                         columnStyles: {
                             0: { cellWidth: 20 },
                             1: { cellWidth: 25 },
@@ -1366,8 +1395,8 @@
                 return;
             }
             notify('Generating Duty Sheet PDF...', 'success');
-            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
-            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+            const bannerDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/site_banner.png');
+            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
         
             const dataByRoomDatePhase = {};
             const allDates = new Set();
@@ -1422,17 +1451,11 @@
                     doc.addPage();
                 }
         
-                if (logoDataURL) addPdfHeader(doc, logoDataURL);
-        
-                const rightMargin = doc.internal.pageSize.getWidth() - 14;
-                const logoY = 10;
-        
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.text(`Faculty Invigilation Duty - ${state.examDetails.type.join(' & ')}`, rightMargin, logoY + 5, { align: 'right' });
+                addPdfHeader(doc, bannerDataURL, state);
                 
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Academic Year: ${state.examDetails.academicYear}`, rightMargin, logoY + 10, { align: 'right' });
+                doc.setFontSize(12); 
+                doc.setFont('helvetica', 'bold'); 
+                doc.text(`Faculty Invigilation Duty`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
         
                 const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
                 const headRow2 = [];
@@ -1473,11 +1496,19 @@
                 doc.autoTable({
                     head: head,
                     body: body,
-                    startY: 40,
+                    startY: 35,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
-                    headStyles: { fontStyle: 'bold', halign: 'center', valign: 'middle', fillColor: [229, 231, 235], textColor: [17, 24, 39], fontSize: 7, lineWidth: 0.1 },
-                    bodyStyles: { lineWidth: 0.1, minCellHeight: 12 },
+                    styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [0,0,0] },
+                    headStyles: { 
+                        fontStyle: 'bold', 
+                        halign: 'center', 
+                        valign: 'middle', 
+                        fillColor: [255, 255, 255], 
+                        textColor: [0, 0, 0], 
+                        fontSize: 7, 
+                        lineColor: [0, 0, 0]
+                    },
+                    bodyStyles: { lineColor: [0, 0, 0], minCellHeight: 12 },
                 });
             });
         
@@ -1493,16 +1524,15 @@
                 return;
             }
 
-            const logoDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/itmbu_logo.png');
-            if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
+            const bannerDataURL = await imageToBase64('https://raw.githubusercontent.com/parthsali/exam-duty-generator/main/site_banner.png');
+            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            if (logoDataURL) addPdfHeader(doc, logoDataURL);
+            addPdfHeader(doc, bannerDataURL, state);
 
-            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix - ${state.examDetails.type.join(' & ')}`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
-            doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 41, { align: 'center' });
+            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
 
             const tableData = assignedFaculty.map(([name, count]) => [name, count]);
 
@@ -1511,7 +1541,13 @@
                 body: tableData,
                 startY: 48,
                 theme: 'grid',
-                headStyles: { fillColor: [55, 65, 81], textColor: [255, 255, 255], fontStyle: 'bold' },
+                headStyles: { 
+                    fillColor: [255, 255, 255], 
+                    textColor: [0, 0, 0], 
+                    fontStyle: 'bold', 
+                    lineColor: [0,0,0]
+                },
+                styles: { lineColor: [0,0,0] },
                 columnStyles: { 1: { halign: 'center' } }
             });
 
@@ -2470,5 +2506,4 @@
     </script>
 </body>
 </html>
-
 

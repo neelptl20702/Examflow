@@ -114,7 +114,7 @@
             examDetails: {
                 session: "Summer Internal",
                 academicYear: getAcademicYear(),
-                type: 'CET 1',
+                type: ['CET 1'],
                 branches: [],
                 specializations: [],
                 semesters: [],
@@ -275,7 +275,23 @@
         function renderStep1_ExamDetails() {
             const { session, academicYear, type, branches, specializations, semesters } = state.examDetails;
             const renderToggleButtons = (options, selected, type) => options.map(opt => `<button class="btn-toggle text-sm px-4 py-1.5 border rounded-full transition-colors ${selected.includes(opt) ? 'btn-toggle-active' : 'hover:bg-gray-100 hover:border-gray-400'}" data-type="${type}" data-value="${opt}">${opt}</button>`).join('');
-            return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Exam Configuration</h2><div class="space-y-8"><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label class="block text-sm font-medium text-gray-700">Session</label><select id="exam-session" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">${["Summer Internal", "Winter Internal"].map(s => `<option ${s === session ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div><label class="block text-sm font-medium text-gray-700">Academic Year</label><select id="exam-year" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">${[getAcademicYear(), `${parseInt(getAcademicYear().split('-')[0])+1}-${parseInt(getAcademicYear().split('-')[1])+1}`].map(y => `<option ${y === academicYear ? 'selected' : ''}>${y}</option>`).join('')}</select></div></div><div><label class="block text-sm font-medium text-gray-700">Generated Exam Name (Editable)</label><input type="text" id="exam-name" value="${state.examName}" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Exam Type*</label><div class="flex flex-wrap gap-2">${EXAM_TYPES.map(t => `<button class="btn-toggle text-sm px-4 py-1.5 border rounded-full transition-colors ${type === t ? 'btn-toggle-active' : 'hover:bg-gray-100 hover:border-gray-400'}" data-type="type" data-value="${t}">${t}</button>`).join('')}</div></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Branch</label><div class="flex flex-wrap gap-2">${renderToggleButtons(BRANCHES, branches, 'branches')}</div></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Specialization</label><div class="flex flex-wrap gap-2">${renderToggleButtons(SPECIALIZATIONS, specializations, 'specializations')}</div></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Semester</label><div class="flex flex-wrap gap-2">${renderToggleButtons(SEMESTERS, semesters, 'semesters')}</div></div></div>`;
+            
+            return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Exam Configuration</h2>
+                <div class="space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><label class="block text-sm font-medium text-gray-700">Session</label><select id="exam-session" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">${["Summer Internal", "Winter Internal"].map(s => `<option ${s === session ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+                        <div><label class="block text-sm font-medium text-gray-700">Academic Year</label><select id="exam-year" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">${[getAcademicYear(), `${parseInt(getAcademicYear().split('-')[0])+1}-${parseInt(getAcademicYear().split('-')[1])+1}`].map(y => `<option ${y === academicYear ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700">Generated Exam Name (Editable)</label><input type="text" id="exam-name" value="${state.examName}" class="mt-1 block w-full p-2.5 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"></div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Exam Type(s)*</label>
+                        <p class="text-xs text-gray-500 mb-2">Select one or more exam types to schedule them together (e.g., CET and MST for the same subject).</p>
+                        <div class="flex flex-wrap gap-2">${EXAM_TYPES.map(t => `<button class="btn-toggle text-sm px-4 py-1.5 border rounded-full transition-colors ${type.includes(t) ? 'btn-toggle-active' : 'hover:bg-gray-100 hover:border-gray-400'}" data-type="type" data-value="${t}">${t}</button>`).join('')}</div>
+                    </div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Branch</label><div class="flex flex-wrap gap-2">${renderToggleButtons(BRANCHES, branches, 'branches')}</div></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Specialization</label><div class="flex flex-wrap gap-2">${renderToggleButtons(SPECIALIZATIONS, specializations, 'specializations')}</div></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2">Filter by Semester</label><div class="flex flex-wrap gap-2">${renderToggleButtons(SEMESTERS, semesters, 'semesters')}</div></div>
+                </div>`;
         }
 
         // --- STEP 2: Subjects ---
@@ -398,13 +414,16 @@
         function renderUnscheduledSubjectsList() {
             const schedulableSubjects = getFilteredSubjects();
             const searchTerm = state.scheduler.searchTerm.toLowerCase();
-            const searchedSubjects = searchTerm ? schedulableSubjects.filter(s => s.SubjectName.toLowerCase().includes(searchTerm) || s.SubjectCode.toLowerCase().includes(searchTerm)) : schedulableSubjects;
-            const scheduledSubjectIds = new Set(Object.values(state.schedule).flatMap(day => day.flatMap(phase => phase.subjects)));
-            const unscheduledSubjects = searchedSubjects.filter(s => !scheduledSubjectIds.has(s.id));
+            const searchedSubjects = searchTerm 
+                ? schedulableSubjects.filter(s => 
+                    (s.SubjectName && String(s.SubjectName).toLowerCase().includes(searchTerm)) || 
+                    (s.SubjectCode && String(s.SubjectCode).toLowerCase().includes(searchTerm))
+                  ) 
+                : schedulableSubjects;
 
-            if (!unscheduledSubjects.length) return '<div class="text-center text-gray-500 py-10"><p>All subjects are scheduled!</p></div>';
+            if (!searchedSubjects.length) return '<div class="text-center text-gray-500 py-10"><p>No subjects match the current filters.</p></div>';
             
-            return unscheduledSubjects.map(s => `
+            return searchedSubjects.map(s => `
                 <div id="subject-${s.id}" class="draggable flex items-start gap-3 p-3 rounded-lg shadow-sm border ${getColorForBranch(s.Branch)} cursor-grab transition-shadow hover:shadow-md" draggable="true" data-id="${s.id}" data-type="subject">
                     <div class="flex-shrink-0 mt-1 text-gray-400">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
@@ -518,12 +537,15 @@
                     <div class="drop-zone min-h-[80px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-date="${date}" data-phase-id="${phaseId}" data-type="subject">
                         ${phase.subjects.length > 0 ? `
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                ${phase.subjects.map(id => {
-                                    const s = state.subjectsMasterList.find(sub => sub.id === id);
+                                ${phase.subjects.map(scheduledItem => {
+                                    const s = state.subjectsMasterList.find(sub => sub.id === scheduledItem.subjectId);
                                     return s ? `
                                         <div class="flex items-center justify-between p-2 rounded-md text-xs ${getColorForBranch(s.Branch)} shadow-sm">
-                                            <span class="font-semibold">${s.SubjectName} (${s.SubjectCode})</span>
-                                            <button class="remove-subject-from-phase-btn ml-2 text-gray-500 hover:text-red-700" data-date="${date}" data-phase-id="${phaseId}" data-subject-id="${s.id}">${ICONS.X}</button>
+                                            <div>
+                                                <span class="font-semibold">${s.SubjectName} (${s.SubjectCode})</span>
+                                                <span class="block text-red-700 font-bold text-[10px] uppercase">${scheduledItem.examType}</span>
+                                            </div>
+                                            <button class="remove-subject-from-phase-btn ml-2 text-gray-500 hover:text-red-700" data-date="${date}" data-phase-id="${phaseId}" data-instance-id="${scheduledItem.instanceId}">${ICONS.X}</button>
                                         </div>` : '';
                                 }).join('')}
                             </div>
@@ -551,7 +573,9 @@
                 for (const phase of state.schedule[date]) {
                     const phaseKey = `${date}|${phase.id}`;
                     if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
-                    const subjectsInPhase = phase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+                    
+                    const subjectIdsInPhase = [...new Set(phase.subjects.map(item => item.subjectId))];
+                    const subjectsInPhase = subjectIdsInPhase.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
                     
                     const phaseHasBlocks = state.allotment[phaseKey] && state.allotment[phaseKey].length > 0;
                     const isCopiedSource = state.copiedAllotment && state.copiedAllotment.sourceKey === phaseKey;
@@ -898,7 +922,10 @@
         }
 
         // --- ACTION FUNCTIONS ---
-        function updateExamName() { state.examName = `${state.examDetails.session} - ${state.examDetails.academicYear}`; }
+        function updateExamName() {
+            const examTypes = state.examDetails.type.join(' & ');
+            state.examName = `${state.examDetails.session} (${examTypes}) - ${state.examDetails.academicYear}`;
+        }
         function addSubjectManually() {
             const code = $('#subject-code').value.trim();
             const name = $('#subject-name').value.trim();
@@ -1078,26 +1105,43 @@
 
         function generateTimetableHTML() {
             const allExams = [];
+            const currentlyFilteredSubjects = getFilteredSubjects();
+            const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
             const selectedSpecs = state.examDetails.specializations;
 
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
-                    for (const subjectId of phase.subjects) {
-                        const subject = state.subjectsMasterList.find(s => s.id === subjectId);
-                        if (subject) {
-                            const examData = { date, time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, code: subject.SubjectCode, name: subject.SubjectName, };
-                            
-                            if (subject.Specialization && subject.Specialization.length > 0) {
-                                const relevantSpecs = selectedSpecs.length > 0
-                                    ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
-                                    : subject.Specialization;
+                    for (const scheduledItem of phase.subjects) {
+                        if (!currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                            continue; // This subject does not match the current filters from Step 1.
+                        }
 
+                        const subject = state.subjectsMasterList.find(s => s.id === scheduledItem.subjectId);
+                        // We know subject is not null because of the check above
+                        
+                        const examData = {
+                            date,
+                            time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`,
+                            code: subject.SubjectCode,
+                            name: `${subject.SubjectName} (${scheduledItem.examType})`,
+                        };
+
+                        if (subject.Specialization && subject.Specialization.length > 0) {
+                            const relevantSpecs = selectedSpecs.length > 0
+                                ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
+                                : subject.Specialization;
+
+                            if(relevantSpecs.length > 0) {
                                 relevantSpecs.forEach(spec => {
                                     allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
                                 });
-                            } else {
-                                allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                            } else if (selectedSpecs.length === 0) {
+                                 subject.Specialization.forEach(spec => {
+                                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                                });
                             }
+                        } else {
+                            allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
                         }
                     }
                 }
@@ -1107,7 +1151,7 @@
             const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) { acc[exam.group] = []; } acc[exam.group].push(exam); return acc; }, {});
             for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
             const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
-            let html = `<div id="timetable-to-print" class="p-8 bg-white"><div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">${SCHOOL_NAME.toUpperCase()}</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p><h2 class="text-2xl font-bold text-red-700 mt-4">${state.examDetails.type} TIME-TABLE</h2></div>`;
+            let html = `<div id="timetable-to-print" class="p-8 bg-white"><div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">${SCHOOL_NAME.toUpperCase()}</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p><h2 class="text-2xl font-bold text-red-700 mt-4">${state.examDetails.type.join(' & ')} TIME-TABLE</h2></div>`;
             const sortedGroups = Object.keys(examsByGroup).sort();
             for (const groupName of sortedGroups) {
                 html += `<div class="mb-8 page-break-after"><h3 class="text-xl font-bold text-gray-800 mb-3 p-2 bg-gray-100 rounded-md">${groupName}</h3><table class="w-full border-collapse text-sm"><thead><tr class="bg-gray-200"><th class="border p-3 text-left w-1/3">DATE & TIME</th><th class="border p-3 text-left w-1/4">COURSE CODE</th><th class="border p-3 text-left">COURSE NAME</th></tr></thead><tbody>`;
@@ -1127,22 +1171,39 @@
             if (!logoDataURL) { console.warn("Logo image could not be loaded for PDF."); }
 
             const allExams = [];
+            const currentlyFilteredSubjects = getFilteredSubjects();
+            const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
             const selectedSpecs = state.examDetails.specializations;
+
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
-                    for (const subjectId of phase.subjects) {
-                        const subject = state.subjectsMasterList.find(s => s.id === subjectId);
+                    for (const scheduledItem of phase.subjects) {
+                        if (!currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                            continue;
+                        }
+                        const subject = state.subjectsMasterList.find(s => s.id === scheduledItem.subjectId);
                         if (subject) {
-                             const examData = { date, time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, code: subject.SubjectCode, name: subject.SubjectName };
+                             const examData = { 
+                                 date, 
+                                 time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, 
+                                 code: subject.SubjectCode, 
+                                 name: `${subject.SubjectName} (${scheduledItem.examType})`
+                            };
                             
                             if (subject.Specialization && subject.Specialization.length > 0) {
                                  const relevantSpecs = selectedSpecs.length > 0
                                     ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
                                     : subject.Specialization;
-
-                                relevantSpecs.forEach(spec => {
-                                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
-                                });
+                                
+                                if(relevantSpecs.length > 0) {
+                                    relevantSpecs.forEach(spec => {
+                                        allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                                    });
+                                } else if (selectedSpecs.length === 0) {
+                                    subject.Specialization.forEach(spec => {
+                                        allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                                    });
+                                }
                             } else {
                                 allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
                             }
@@ -1150,6 +1211,7 @@
                     }
                 }
             }
+            
             if (allExams.length === 0) { notify('No exams scheduled for the selected filters to generate a PDF.', 'error'); return; }
             const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) acc[exam.group] = []; acc[exam.group].push(exam); return acc; }, {});
              for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
@@ -1165,7 +1227,7 @@
                 
                 const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
                 doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 32, { align: 'center' });
-                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(197, 48, 48); doc.text(`${state.examDetails.type} TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' }); doc.setTextColor(0, 0, 0);
+                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(197, 48, 48); doc.text(`${state.examDetails.type.join(' & ')} TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' }); doc.setTextColor(0, 0, 0);
                 
                 let startY = 50;
                 const specializationGroups = examsByCourse[courseName];
@@ -1231,7 +1293,7 @@
                 
                 if (logoDataURL) addPdfHeader(doc, logoDataURL);
 
-                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${state.examDetails.type} - Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`${state.examDetails.type.join(' & ')} - Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
                 
                 doc.setFontSize(10);
                 doc.text(`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`, 14, 42);
@@ -1367,7 +1429,7 @@
         
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text(`Faculty Invigilation Duty - ${state.examDetails.type}`, rightMargin, logoY + 5, { align: 'right' });
+                doc.text(`Faculty Invigilation Duty - ${state.examDetails.type.join(' & ')}`, rightMargin, logoY + 5, { align: 'right' });
                 
                 doc.setFont('helvetica', 'normal');
                 doc.text(`Academic Year: ${state.examDetails.academicYear}`, rightMargin, logoY + 10, { align: 'right' });
@@ -1439,7 +1501,7 @@
 
             if (logoDataURL) addPdfHeader(doc, logoDataURL);
 
-            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix - ${state.examDetails.type}`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+            doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Faculty Duty Load Matrix - ${state.examDetails.type.join(' & ')}`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
             doc.setFontSize(10); doc.text(`Academic Year: ${state.examDetails.academicYear}`, doc.internal.pageSize.getWidth() / 2, 41, { align: 'center' });
 
             const tableData = assignedFaculty.map(([name, count]) => [name, count]);
@@ -1680,18 +1742,19 @@
 
         function showAssignSubjectModal(date, phaseId) {
             const schedulableSubjects = getFilteredSubjects();
-            const scheduledSubjectIds = new Set(Object.values(state.schedule).flatMap(day => day.flatMap(phase => phase.subjects)));
-            const unscheduledSubjects = schedulableSubjects.filter(s => !scheduledSubjectIds.has(s.id));
+            const isMultiType = state.examDetails.type.length > 1;
+            const inputType = isMultiType ? 'radio' : 'checkbox';
             
              const content = `
                 <div class="p-4 border-b">
                     <input type="text" id="modal-subject-search" placeholder="Search available subjects..." class="w-full p-2 border rounded-md">
                 </div>
                 <form id="assign-subject-form" data-date="${date}" data-phase-id="${phaseId}">
-                    <div id="modal-subject-list" class="p-6 space-y-3 max-h-80 overflow-y-auto">
-                        ${unscheduledSubjects.length > 0 ? unscheduledSubjects.map(s => `
+                    <div class="p-6 space-y-3 max-h-80 overflow-y-auto" id="modal-subject-list">
+                        ${isMultiType ? `<p class="text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md border border-yellow-200 mb-4">Please assign one subject at a time when multiple exam types are active.</p>`: ''}
+                        ${schedulableSubjects.length > 0 ? schedulableSubjects.map(s => `
                             <label class="flex items-start gap-3 p-3 rounded-lg border ${getColorForBranch(s.Branch)} cursor-pointer transition-all hover:shadow-md">
-                                <input type="checkbox" name="subject" value="${s.id}" class="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <input type="${inputType}" name="subject" value="${s.id}" class="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
                                 <div class="flex-grow">
                                     <p class="font-semibold text-sm leading-tight">${s.SubjectName}</p>
                                     <p class="text-xs text-gray-600 mt-1">${s.SubjectCode} | ${s.Branch} | ${s.Semester}</p>
@@ -1823,7 +1886,10 @@
             if (!block) return;
             const [date, phaseId] = phaseKey.split('|');
             const phase = state.schedule[date]?.find(p => p.id === phaseId);
-            const subjectsInPhase = phase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+
+            const subjectIdsInPhase = [...new Set(phase.subjects.map(item => item.subjectId))];
+            const subjectsInPhase = subjectIdsInPhase.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+            
             const subjectOfBlock = subjectsInPhase.find(s => s.id == block.subjectId);
 
             let specializationHtml = '';
@@ -1897,10 +1963,24 @@
             }
             const toggleBtn = e.target.closest('.btn-toggle');
             if(toggleBtn) {
-                const {type, value} = toggleBtn.dataset;
-                if (type === 'type') { state.examDetails.type = value; }
-                else { const current = state.examDetails[type]; state.examDetails[type] = current.includes(value) ? current.filter(v => v !== value) : [...current, value]; }
-                updateExamName(); render(); saveState();
+                const { type, value } = toggleBtn.dataset;
+                const details = state.examDetails;
+                if (type === 'type') {
+                    const currentTypes = details.type;
+                    if (currentTypes.includes(value) && currentTypes.length > 1) {
+                        details.type = currentTypes.filter(v => v !== value);
+                    } else if (!currentTypes.includes(value)) {
+                        details.type = [...currentTypes, value];
+                    } else {
+                        notify('At least one exam type must be selected.', 'warning');
+                    }
+                } else { // For branches, specializations, semesters
+                    const current = details[type];
+                    details[type] = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
+                }
+                updateExamName();
+                render();
+                saveState();
             }
             if (e.target.closest('#add-subject-btn')) addSubjectManually();
             if (e.target.closest('#add-faculty-btn')) addFaculty();
@@ -2011,7 +2091,10 @@
                 const [targetDate, targetPhaseId] = targetKey.split('|');
                 const targetPhase = state.schedule[targetDate]?.find(p => p.id === targetPhaseId);
                 if (!targetPhase) return;
-                const targetSubjects = targetPhase.subjects.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+
+                const targetSubjectIds = [...new Set(targetPhase.subjects.map(item => item.subjectId))];
+                const targetSubjects = targetSubjectIds.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
+                
                 const newBlocks = [];
                 let unmappedCount = 0;
                 sourceBlocks.forEach(sourceBlock => {
@@ -2056,10 +2139,10 @@
             
             const removeSubjectBtn = e.target.closest('.remove-subject-from-phase-btn');
             if(removeSubjectBtn) {
-                const { date, phaseId, subjectId } = removeSubjectBtn.dataset;
+                const { date, phaseId, instanceId } = removeSubjectBtn.dataset;
                 const phase = state.schedule[date]?.find(p => p.id === phaseId);
                 if (phase) {
-                    phase.subjects = phase.subjects.filter(id => id != subjectId);
+                    phase.subjects = phase.subjects.filter(item => item.instanceId !== instanceId);
                     render();
                     saveState();
                 }
@@ -2075,7 +2158,12 @@
             }
         }
         function handleGlobalChange(e) {
-            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') { state.examDetails[e.target.id.split('-')[1]] = e.target.value; updateExamName(); render(); saveState(); }
+            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') { 
+                state.examDetails[e.target.id.split('-')[1]] = e.target.value; 
+                updateExamName(); 
+                render(); 
+                saveState(); 
+            }
             if (e.target.matches('#subject-file-upload')) { handleFileUpload(e.target.files[0], 'subject'); e.target.value = ''; }
             if (e.target.matches('#room-file-upload')) { handleFileUpload(e.target.files[0], 'room'); e.target.value = ''; }
             if (e.target.matches('#faculty-file-upload')) { handleFileUpload(e.target.files[0], 'faculty'); e.target.value = ''; }
@@ -2083,8 +2171,100 @@
                 handleSubjectChange(e.target);
             }
         }
+        
+        function addSubjectToPhase(subjectId, date, phaseId) {
+            const examTypes = state.examDetails.type;
+            const subjectIdAsNumber = parseFloat(subjectId);
+
+            if (examTypes.length === 1) {
+                // If only one exam type, add directly without modal
+                const phase = state.schedule[date].find(p => p.id === phaseId);
+                const alreadyExists = phase.subjects.some(item => item.subjectId === subjectIdAsNumber && item.examType === examTypes[0]);
+                if (alreadyExists) {
+                    notify('This subject is already scheduled for this exam type in this phase.', 'warning');
+                    return;
+                }
+                phase.subjects.push({
+                    instanceId: `subinst_${Date.now()}_${Math.random()}`,
+                    subjectId: subjectIdAsNumber,
+                    examType: examTypes[0]
+                });
+                render();
+                saveState();
+            } else {
+                // If multiple exam types, show modal
+                showSelectExamTypeModal(subjectIdAsNumber, date, phaseId);
+            }
+        }
+
+        function showSelectExamTypeModal(subjectId, date, phaseId) {
+            const subject = state.subjectsMasterList.find(s => s.id === subjectId);
+            const phase = state.schedule[date].find(p => p.id === phaseId);
+            
+            // Find which exam types for THIS subject are already in THIS phase
+            const existingTypesForSubject = phase.subjects
+                .filter(item => item.subjectId === subjectId)
+                .map(item => item.examType);
+                
+            // Find available types by filtering out existing ones
+            const availableTypes = state.examDetails.type.filter(t => !existingTypesForSubject.includes(t));
+
+            if (availableTypes.length === 0) {
+                notify(`${subject.SubjectName} has already been scheduled for all selected exam types in this phase.`, 'warning');
+                return;
+            }
+
+            const content = `
+                <form id="select-exam-type-form" data-subject-id="${subjectId}" data-date="${date}" data-phase-id="${phaseId}" class="p-6 space-y-4">
+                    <p>Select exam type(s) for <strong>${subject.SubjectName}</strong>.</p>
+                    <div class="space-y-2">
+                        ${availableTypes.map(type => `
+                            <label class="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" name="examType" value="${type}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <span class="ml-3 text-sm font-medium text-gray-800">${type}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Assign Subject(s)</button>
+                    </div>
+                </form>
+            `;
+            
+            state.modal = {
+                visible: true,
+                title: 'Select Exam Type(s)',
+                content
+            };
+            render();
+        }
+
         function handleGlobalSubmit(e) {
             e.preventDefault();
+            if (e.target.id === 'select-exam-type-form') {
+                const form = e.target;
+                const { subjectId, date, phaseId } = form.dataset;
+                const formData = new FormData(form);
+                const selectedTypes = formData.getAll('examType');
+
+                if (selectedTypes.length > 0) {
+                    const phase = state.schedule[date].find(p => p.id === phaseId);
+                    selectedTypes.forEach(type => {
+                        phase.subjects.push({
+                            instanceId: `subinst_${Date.now()}_${Math.random()}`,
+                            subjectId: parseFloat(subjectId),
+                            examType: type
+                        });
+                    });
+                    
+                    state.modal.visible = false;
+                    render();
+                    saveState();
+                } else {
+                    notify('Please select at least one exam type.', 'error');
+                }
+            }
             if (e.target.matches('.add-block-form')) {
                 handleAddBlock(e.target, e.target.dataset.phaseKey);
             }
@@ -2144,18 +2324,14 @@
             if (e.target.id === 'assign-subject-form') {
                 const { date, phaseId } = e.target.dataset;
                 const formData = new FormData(e.target);
-                const selectedSubjects = formData.getAll('subject').map(id => parseFloat(id));
-                const phase = state.schedule[date].find(p => p.id === phaseId);
-                if (phase) {
-                    selectedSubjects.forEach(id => {
-                        if(!phase.subjects.includes(id)) {
-                             phase.subjects.push(id);
-                        }
-                    })
-                }
+                const selectedSubjects = formData.getAll('subject');
+                
                 state.modal.visible = false;
-                render();
-                saveState();
+                render(); 
+
+                selectedSubjects.forEach(subjectId => {
+                    addSubjectToPhase(subjectId, date, phaseId);
+                });
             }
         }
 
@@ -2163,7 +2339,9 @@
             loadState(); // Load state first
             $('#university-name').textContent = UNIVERSITY_NAME;
             $('#school-name').textContent = SCHOOL_NAME;
-            state.examName = state.examName || `${state.examDetails.session} - ${state.examDetails.academicYear}`;
+            if (!state.examName) {
+                updateExamName();
+            }
             render();
             
             const appContainer = $('#app-container');
@@ -2267,12 +2445,7 @@
 
                 if (state.draggedItemType === 'subject') {
                     const { date, phaseId } = dropZone.dataset;
-                    Object.keys(state.schedule).forEach(d => { state.schedule[d].forEach(p => { p.subjects = p.subjects.filter(id => id != state.draggedItemId); }); });
-                    const subjectIdAsNumber = parseFloat(state.draggedItemId);
-                    const targetPhase = state.schedule[date].find(p => p.id === phaseId);
-                    if (targetPhase && !targetPhase.subjects.includes(subjectIdAsNumber)) {
-                       targetPhase.subjects.push(subjectIdAsNumber);
-                    }
+                    addSubjectToPhase(state.draggedItemId, date, phaseId);
                 } else if (state.draggedItemType === 'faculty') {
                     const { phaseKey, room } = dropZone.dataset;
                     const faculty = state.facultyMaster.find(f => f.id === state.draggedItemId);
@@ -2288,12 +2461,14 @@
                     if (!state.dutyAssignments[phaseKey][room].includes(faculty.name)) {
                          state.dutyAssignments[phaseKey][room].push(faculty.name);
                     }
+                    render();
+                    saveState();
                 }
-                render();
-                saveState();
             });
         }
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
+
+

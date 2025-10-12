@@ -384,10 +384,16 @@
                         <p class="text-gray-500 mt-1 desktop-only">Drag & drop subjects into a time slot.</p>
                         <p class="text-gray-500 mt-1 mobile-only">Select a date, then add exams to a phase using the 'Assign' button.</p>
                     </div>
-                    <button id="publish-timetable-btn" class="flex items-center gap-2 text-sm bg-red-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-700 transition-colors mt-4 md:mt-0">
-                        ${ICONS.Printer}
-                        <span>View & Publish Timetable</span>
-                    </button>
+                    <div class="flex flex-col md:flex-row items-end md:items-center gap-3 mt-4 md:mt-0">
+                        <button id="generate-answersheet-btn" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            <span>Answer Sheet Issue Sheet</span>
+                        </button>
+                        <button id="publish-timetable-btn" class="flex items-center gap-2 text-sm bg-red-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-700 transition-colors">
+                            ${ICONS.Printer}
+                            <span>View & Publish Timetable</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div class="lg:col-span-4 bg-white p-4 rounded-xl border h-fit desktop-only">
@@ -615,7 +621,7 @@
                                     <div class="specialization-container md:col-span-2"></div>
                                     <div class="md:col-span-2">
                                         <label class="text-xs font-medium text-gray-600">Block No.</label>
-                                        <input type="text" name="blockNo" required placeholder="e.g., 1 or EB-1" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                        <input type="text" name="blockNo" required placeholder="e.g., 1" class="block w-full p-2 border rounded-md text-sm mt-1">
                                     </div>
                                     <div class="md:col-span-2">
                                         <label class="text-xs font-medium text-gray-600">Room</label>
@@ -623,11 +629,15 @@
                                             ${state.roomsMaster.map(r => `<option value="${r.name}">${r.name}</option>`).join('')}
                                         </select>
                                     </div>
-                                     <div class="md:col-span-2">
+                                    <div class="md:col-span-2">
                                         <label class="text-xs font-medium text-gray-600">Seat Range</label>
                                         <input type="text" name="seatRange" required placeholder="e.g., A1-A20" class="block w-full p-2 border rounded-md text-sm mt-1">
                                     </div>
-                                    <button type="submit" class="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 h-fit text-sm md:col-span-1">Add</button>
+                                    <div class="md:col-span-1">
+                                        <label class="text-xs font-medium text-gray-600">Students</label>
+                                        <input type="number" name="studentCount" required placeholder="e.g., 20" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                    </div>
+                                    <button type="submit" class="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 h-fit text-sm">Add</button>
                                 </form>
                                 ` : `<p class="text-sm text-center text-gray-500">${state.roomsMaster.length === 0 ? 'Please add rooms below before creating blocks.' : 'No subjects scheduled in this phase.'}</p>`}
                             </div>
@@ -653,7 +663,9 @@
                             <h2 class="text-3xl font-bold text-gray-800">Allotment & Rooms</h2>
                             <p class="text-gray-500 mt-1">Manage rooms and create seating blocks for each exam session.</p>
                         </div>
-                        <button id="download-seating-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm mt-4 md:mt-0">Download Seating PDF</button>
+                         <button id="download-seating-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm mt-4 md:mt-0">
+                            ${ICONS.Printer} Download Seating PDF
+                        </button>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div class="lg:col-span-4">
@@ -703,45 +715,89 @@
             if (blocks.length === 0) {
                 return '<p class="text-center text-sm text-gray-500 py-6">No blocks created for this session yet.</p>';
             }
-             blocks.sort((a, b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
 
-            return `
+            // Group blocks by roomName
+            const blocksByRoom = blocks.reduce((acc, block) => {
+                if (!acc[block.roomName]) {
+                    acc[block.roomName] = [];
+                }
+                acc[block.roomName].push(block);
+                return acc;
+            }, {});
+
+            let tableHtml = `
                 <table class="w-full text-sm mt-4">
                     <thead class="text-left bg-gray-100">
                         <tr>
-                            <th class="p-2 font-semibold">Block No.</th>
                             <th class="p-2 font-semibold">Room</th>
+                            <th class="p-2 font-semibold">Block No.</th>
                             <th class="p-2 font-semibold">Subject</th>
                             <th class="p-2 font-semibold">Seat Range</th>
+                            <th class="p-2 font-semibold">Students</th>
                             <th class="p-2 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${blocks.map(block => {
-                            const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
-                            let subjectText = 'N/A';
-                            if (subject) {
-                                subjectText = `${subject.SubjectName} (${subject.Branch})`;
-                                if (block.specialization) {
-                                    subjectText += ` - ${block.specialization}`;
-                                }
-                            }
-                            return `
-                                <tr class="border-t">
-                                    <td class="p-2 font-semibold">${block.blockNo}</td>
-                                    <td class="p-2">${block.roomName}</td>
-                                    <td class="p-2">${subjectText}</td>
-                                    <td class="p-2 font-mono">${block.seatRange}</td>
-                                    <td class="p-2 text-right">
-                                        <button class="edit-block-btn text-gray-400 hover:text-blue-600 p-1" data-phase-key="${phaseKey}" data-block-id="${block.id}" title="Edit Block">${ICONS.Edit}</button>
-                                        <button class="remove-block-btn text-gray-400 hover:text-red-600 p-1" data-phase-key="${phaseKey}" data-block-id="${block.id}" title="Delete Block">${ICONS.Trash}</button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
             `;
+
+            const sortedRooms = Object.keys(blocksByRoom).sort((a,b) => {
+                const blockA = blocksByRoom[a][0].blockNo || '';
+                const blockB = blocksByRoom[b][0].blockNo || '';
+                return blockA.localeCompare(blockB, undefined, { numeric: true });
+            });
+
+            for (const roomName of sortedRooms) {
+                const roomBlocks = blocksByRoom[roomName];
+                const roomData = state.roomsMaster.find(r => r.name === roomName);
+                const roomCapacity = roomData ? roomData.capacity : 0;
+                let totalStudentsInRoom = 0;
+
+                roomBlocks.forEach(block => {
+                    const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                    totalStudentsInRoom += parseInt(block.studentCount || 0);
+                    let subjectText = 'N/A';
+                    if (subject) {
+                        subjectText = `${subject.SubjectName} (${subject.Branch})`;
+                        if (block.specialization) {
+                            subjectText += ` - ${block.specialization}`;
+                        }
+                    }
+                    tableHtml += `
+                        <tr class="border-t">
+                            <td class="p-2 font-semibold">${block.roomName}</td>
+                            <td class="p-2">${block.blockNo}</td>
+                            <td class="p-2">${subjectText}</td>
+                            <td class="p-2 font-mono">${block.seatRange}</td>
+                            <td class="p-2 font-bold text-center">${block.studentCount}</td>
+                            <td class="p-2 text-right">
+                                <button class="edit-block-btn text-gray-400 hover:text-blue-600 p-1" data-phase-key="${phaseKey}" data-block-id="${block.id}" title="Edit Block">${ICONS.Edit}</button>
+                                <button class="remove-block-btn text-gray-400 hover:text-red-600 p-1" data-phase-key="${phaseKey}" data-block-id="${block.id}" title="Delete Block">${ICONS.Trash}</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                const capacityUtilization = roomCapacity > 0 ? totalStudentsInRoom / roomCapacity : 0;
+                let capacityClass = 'bg-gray-50';
+                if (capacityUtilization > 1) {
+                    capacityClass = 'bg-red-100 text-red-800'; // Over capacity
+                } else if (capacityUtilization >= 0.8) {
+                    capacityClass = 'bg-yellow-100 text-yellow-800'; // Nearing capacity
+                } else if (totalStudentsInRoom > 0) {
+                    capacityClass = 'bg-green-100 text-green-800'; // Good
+                }
+
+                tableHtml += `
+                    <tr class="border-t-2 font-bold ${capacityClass}">
+                        <td colspan="4" class="p-2 text-right">Total for ${roomName}:</td>
+                        <td class="p-2 text-center">${totalStudentsInRoom} / ${roomCapacity}</td>
+                        <td class="p-2"></td>
+                    </tr>
+                `;
+            }
+
+            tableHtml += `</tbody></table>`;
+            return tableHtml;
         }
         
         // --- STEP 5: Duty Assignment (IMPROVED) ---
@@ -772,9 +828,16 @@
                     
                     assignmentHtml += `
                         <div class="bg-gray-50 p-5 rounded-xl border mb-6">
-                            <h3 class="font-bold text-lg mb-2">${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-                            <p class="text-sm text-red-700 font-semibold mb-4">${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}</p>
-                            
+                             <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 class="font-bold text-lg">${new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                                    <p class="text-sm text-red-700 font-semibold">${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}</p>
+                                </div>
+                                <button class="download-phase-duty-btn flex items-center gap-2 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold p-2 rounded-lg" data-phase-key="${phaseKey}">
+                                    ${ICONS.Printer}
+                                    <span>Download Phase Sheet</span>
+                                </button>
+                            </div>
                             <div class="space-y-4">
                                 ${renderDutyRoomsForPhase(phaseKey)}
                             </div>
@@ -798,7 +861,7 @@
                                 ${ICONS.Users}<span>View Load Matrix</span>
                             </button>
                             <button id="preview-duty-pdf" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm">
-                                Preview Duty Sheet
+                                Preview Full Duty Sheet
                             </button>
                         </div>
                     </div>
@@ -870,11 +933,26 @@
             return sortedRoomsMeta.map(({ roomName }) => {
                 const assignedFaculty = state.dutyAssignments[phaseKey]?.[roomName] || [];
                 const blocksInThisRoom = blocksInPhase.filter(b => b.roomName === roomName);
+                const totalStudentsInRoom = blocksInThisRoom.reduce((sum, block) => sum + parseInt(block.studentCount || 0), 0);
+                const roomData = state.roomsMaster.find(r => r.name === roomName);
+                const roomCapacity = roomData ? roomData.capacity : 0;
                 
+                let capacityClass = 'text-gray-800';
+                if (totalStudentsInRoom > 50) {
+                    capacityClass = 'text-red-600';
+                } else if (totalStudentsInRoom > 25) {
+                    capacityClass = 'text-yellow-600';
+                } else if (totalStudentsInRoom > 0) {
+                    capacityClass = 'text-green-600';
+                }
+
                 return `
                     <div class="bg-white p-4 rounded-lg border">
                         <div class="flex justify-between items-start">
-                            <h4 class="font-bold text-gray-800">${roomName}</h4>
+                             <div>
+                                <h4 class="font-bold text-gray-800">${roomName}</h4>
+                                <p class="text-xs font-semibold ${capacityClass}">(${totalStudentsInRoom} / ${roomCapacity} Students)</p>
+                            </div>
                             <button class="mobile-only assign-faculty-btn text-sm bg-red-100 text-red-700 hover:bg-red-200 font-semibold p-2 rounded-lg flex items-center gap-2 transition-colors" data-phase-key="${phaseKey}" data-room="${roomName}">
                                 Assign Faculty
                             </button>
@@ -993,8 +1071,9 @@
                 roomName: formData.get('roomName'),
                 seatRange: formData.get('seatRange'),
                 blockNo: formData.get('blockNo'),
+                studentCount: formData.get('studentCount')
             };
-            if(block.subjectId && block.roomName && block.seatRange && block.blockNo) {
+            if(block.subjectId && block.roomName && block.seatRange && block.blockNo && block.studentCount) {
                 if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
                 state.allotment[phaseKey].push(block);
                 form.reset();
@@ -1084,7 +1163,7 @@
 
         // --- PDF & Modal & DYNAMIC HELPERS ---
         
-        function addPdfHeader(doc, bannerDataURL, state) {
+        function addPdfHeader(doc, bannerDataURL, state, title = 'SOCSET', subTitle = null) {
             const bannerWidth = 70; // Banner is wider than the logo
             const bannerHeight = 15;
             const bannerX = 14;
@@ -1099,16 +1178,47 @@
             // Right side: Exam Info
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text('SOCSET', rightMargin, bannerY + 4, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+            doc.text(title, rightMargin, bannerY + 4, { align: 'right' });
             
             const examNameString = `${state.examName}`; // Use the full generated name
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.text(examNameString, rightMargin, bannerY + 9, { align: 'right' });
 
+            if (subTitle) {
+                doc.setFont('helvetica', 'bold');
+                doc.text(subTitle, rightMargin, bannerY + 14, { align: 'right' });
+            }
+
             // Bottom line
             doc.setLineWidth(0.5);
             doc.setDrawColor(0); // Black color for the line
+            doc.line(14, bannerY + bannerHeight + 4, doc.internal.pageSize.getWidth() - 14, bannerY + bannerHeight + 4);
+        }
+
+        function addDutySheetPdfHeader(doc, bannerDataURL, state) {
+            const bannerWidth = 70;
+            const bannerHeight = 15;
+            const bannerX = 14;
+            const bannerY = 10;
+            const rightMargin = doc.internal.pageSize.getWidth() - 14;
+
+            if (bannerDataURL) {
+                doc.addImage(bannerDataURL, 'PNG', bannerX, bannerY, bannerWidth, bannerHeight);
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('SOCSET - Faculty Invigilation Duty', rightMargin, bannerY + 5, { align: 'right' });
+            
+            const examNameString = `${state.examName}`;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(examNameString, rightMargin, bannerY + 10, { align: 'right' });
+
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(0);
             doc.line(14, bannerY + bannerHeight + 4, doc.internal.pageSize.getWidth() - 14, bannerY + bannerHeight + 4);
         }
 
@@ -1291,109 +1401,169 @@
             }
         }
 
-        async function generateSeatingArrangementPDF() {
-            if (Object.values(state.allotment).every(arr => arr.length === 0)) {
-                notify('No allotments created. Please create blocks first.', 'error');
+        async function generateSeatingArrangementPDF(phaseKeyOrAll) {
+            const phaseKeysToProcess = phaseKeyOrAll === 'all'
+                ? Object.keys(state.allotment).filter(k => state.allotment[k]?.length > 0).sort()
+                : [phaseKeyOrAll];
+
+            if (phaseKeysToProcess.length === 0 || !state.allotment[phaseKeysToProcess[0]] || state.allotment[phaseKeysToProcess[0]].length === 0) {
+                notify('No allotments created for the selected phase(s).', 'error');
                 return;
             }
             notify('Generating Seating Arrangement PDF...', 'success');
 
             const bannerDataURL = await imageToBase64('site_banner.png');
-            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
+            
+            let useLegalFormat = false;
+            if (phaseKeyOrAll === 'all') {
+                let maxRoomCount = 0;
+                for (const phaseKey of phaseKeysToProcess) {
+                    const blocksInPhase = state.allotment[phaseKey] || [];
+                    const roomCount = new Set(blocksInPhase.map(b => b.roomName)).size;
+                    if (roomCount > maxRoomCount) {
+                        maxRoomCount = roomCount;
+                    }
+                }
+                if (maxRoomCount > 7) {
+                    useLegalFormat = true;
+                }
+            } else {
+                 const blocksInPhase = state.allotment[phaseKeyOrAll] || [];
+                 const roomCount = new Set(blocksInPhase.map(b => b.roomName)).size;
+                 if (roomCount > 7) {
+                    useLegalFormat = true;
+                 }
+            }
+
 
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            const sortedPhaseKeys = Object.keys(state.allotment).sort();
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: useLegalFormat ? 'legal' : 'a4' });
             let isFirstPageOfDocument = true;
 
-            for (const phaseKey of sortedPhaseKeys) {
+            for (const phaseKey of phaseKeysToProcess) {
                 const [date, phaseId] = phaseKey.split('|');
                 const phase = state.schedule[date]?.find(p => p.id === phaseId);
                 const blocksInPhase = state.allotment[phaseKey];
                 if (!phase || !blocksInPhase || blocksInPhase.length === 0) continue;
 
                 if (!isFirstPageOfDocument) {
-                    doc.addPage();
+                    doc.addPage(useLegalFormat ? 'legal' : 'a4');
                 }
-                isFirstPageOfDocument = false;
                 
-                addPdfHeader(doc, bannerDataURL, state);
+                const subTitle = `Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')} | Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`;
+                addPdfHeader(doc, bannerDataURL, state, 'SOCSET Seating Arrangement', subTitle);
 
-                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Seating Arrangement`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
-                
-                doc.setFontSize(10);
-                doc.text(`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`, 14, 42);
-                doc.text(`Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`, doc.internal.pageSize.getWidth() - 14, 42, { align: 'right' });
+                let startY = 32;
 
-                const blocksByCourse = blocksInPhase.reduce((acc, block) => {
-                    const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
-                    const courseName = subject ? subject.Branch : 'Uncategorized';
-                    if (!acc[courseName]) acc[courseName] = [];
-                    acc[courseName].push(block);
+                const blocksByRoom = blocksInPhase.reduce((acc, block) => {
+                    if (!acc[block.roomName]) acc[block.roomName] = [];
+                    acc[block.roomName].push(block);
                     return acc;
                 }, {});
 
-                let startY = 50;
-                const sortedCourses = Object.keys(blocksByCourse).sort();
+                const sortedRooms = Object.keys(blocksByRoom).sort((a,b) => {
+                    const blockA = (blocksByRoom[a][0].blockNo || '0').toString();
+                    const blockB = (blocksByRoom[b][0].blockNo || '0').toString();
+                    return blockA.localeCompare(blockB, undefined, { numeric: true });
+                });
+                
+                let currentY = startY;
 
-                for (const courseName of sortedCourses) {
-                       const blocksInCourse = blocksByCourse[courseName].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
-                       
-                       const body = blocksInCourse.map(block => {
-                            const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
-                            let subjectInfo = 'Unknown Subject';
-                             if (subject) {
-                                subjectInfo = `${subject.SubjectName} (${subject.Semester})`;
-                                if (block.specialization) {
-                                    subjectInfo += ` - ${block.specialization}`;
-                                }
+                // Dynamic Font Sizing Logic
+                const roomCount = sortedRooms.length;
+                let fontSize, cellPadding, verticalGap;
+
+                if (roomCount <= 7) { // User's threshold
+                    fontSize = 10;
+                    cellPadding = 2;
+                    verticalGap = 5;
+                } else {
+                    fontSize = 7;
+                    cellPadding = 1.3;
+                    verticalGap = 3;
+                }
+
+                for (const roomName of sortedRooms) {
+                    const roomBlocks = blocksByRoom[roomName];
+                    
+                    const body = roomBlocks.map(block => {
+                        const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+                        let branchInfo = 'Unknown';
+                        if (subject) {
+                            branchInfo = `${subject.Branch} - ${subject.Semester}`;
+                            if (block.specialization) {
+                                branchInfo += ` / ${block.specialization}`;
                             }
-                            return [block.blockNo, block.roomName, subjectInfo, block.seatRange];
-                       });
-
-                    const tableHeight = (body.length + 2) * 8;
-                    if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
-                        doc.addPage();
-                        startY = 15;
-                    } else if (startY > 50) {
-                        startY += 5;
+                        }
+                        return [
+                            block.blockNo,
+                            branchInfo,
+                            block.seatRange,
+                            block.studentCount
+                        ];
+                    });
+                    
+                    const tableHeight = (body.length + 2) * (fontSize * 0.7); // Estimate height
+                    if (currentY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
+                        doc.addPage(useLegalFormat ? 'legal' : 'a4');
+                        currentY = 20; 
+                        addPdfHeader(doc, bannerDataURL, state, 'SOCSET Seating Arrangement', subTitle + " (Contd.)");
                     }
 
                     doc.autoTable({
-                        startY: startY,
-                        head: [[{ content: `COURSE: ${courseName}`, colSpan: 4, styles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineColor: [0,0,0] } }]],
+                        startY: currentY,
+                        head: [[{ content: `Room: ${roomName}`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: [0,0,0], lineColor: [0,0,0] } }]],
                         body: [
-                            ['BLOCK NO.', 'ROOM NO.', 'SUBJECT', 'SEAT NUMBER'],
-                            ...body
-                        ],
+                            ['Block', 'Branch / Semester / Spec', 'Seat Range', 'Students']
+                        ].concat(body),
                         theme: 'grid',
+                        styles: { 
+                            cellPadding: cellPadding, 
+                            fontSize: fontSize, 
+                            lineColor: [0, 0, 0], 
+                            textColor: [0, 0, 0]
+                        },
+                        headStyles: { 
+                            fillColor: [240, 240, 240], 
+                            textColor: [0, 0, 0], 
+                            fontStyle: 'bold',
+                            lineWidth: 0.1,
+                        },
+                        bodyStyles: {
+                            lineWidth: 0.1
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 12, halign: 'center' },
+                            2: { cellWidth: 40 },
+                            3: { cellWidth: 18, halign: 'center' },
+                        },
                         didParseCell: function(data) {
-                            if (data.section === 'body' && data.row.index === 0) {
-                                data.cell.styles.fillColor = [255, 255, 255];
-                                data.cell.styles.textColor = [0, 0, 0];
+                            if (data.row.index === 0 && data.section === 'body') {
                                 data.cell.styles.fontStyle = 'bold';
                             }
-                        },
-                        styles: { cellPadding: 2, fontSize: 9, lineColor: [0,0,0] },
-                        headStyles: { lineColor: [0,0,0] },
-                        bodyStyles: { lineColor: [0,0,0] },
-                        columnStyles: {
-                            0: { cellWidth: 20 },
-                            1: { cellWidth: 25 },
-                            3: { cellWidth: 45 }
                         }
                     });
-                     startY = doc.autoTable.previous.finalY;
+                    currentY = doc.autoTable.previous.finalY + verticalGap;
                 }
+                isFirstPageOfDocument = false;
             }
-             doc.save(`${state.examName}_Seating_Arrangement_Course-Wise.pdf`);
+
+            const fileName = phaseKeyOrAll === 'all'
+                ? `${state.examName}_Seating_Arrangement_All.pdf`
+                : `${state.examName}_Seating_Arrangement_${phaseKeyOrAll.split('|')[0]}.pdf`;
+            
+            doc.save(fileName);
         }
         
-        async function generateDutySheetPDF() {
-            if (Object.keys(state.dutyAssignments).length === 0) {
+        async function generateDutySheetPDF(specificPhaseKey = null) {
+            const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
+            const finalPhaseKeys = specificPhaseKey ? [specificPhaseKey] : sortedPhaseKeys;
+            
+            if (finalPhaseKeys.length === 0 || Object.keys(state.dutyAssignments).length === 0) {
                 notify('No duties assigned yet.', 'error');
                 return;
             }
+
             notify('Generating Duty Sheet PDF...', 'success');
             const bannerDataURL = await imageToBase64('site_banner.png');
             if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
@@ -1402,9 +1572,8 @@
             const allDates = new Set();
             const allRoomsMeta = new Map();
             const phasesByDate = {};
-            const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
         
-            for (const phaseKey of sortedPhaseKeys) {
+            for (const phaseKey of finalPhaseKeys) {
                 const [date, phaseId] = phaseKey.split('|');
                 const phaseInfo = state.schedule[date]?.find(p => p.id === phaseId);
                 if (!phaseInfo) continue;
@@ -1438,8 +1607,9 @@
             }
         
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const DATES_PER_PAGE = 4;
+            const orientation = sortedRooms.length > 12 ? 'portrait' : 'landscape';
+            const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
+            const DATES_PER_PAGE = specificPhaseKey ? sortedDates.length : (orientation === 'landscape' ? 4 : 2);
         
             const dateChunks = [];
             for (let i = 0; i < sortedDates.length; i += DATES_PER_PAGE) {
@@ -1451,11 +1621,7 @@
                     doc.addPage();
                 }
         
-                addPdfHeader(doc, bannerDataURL, state);
-                
-                doc.setFontSize(12); 
-                doc.setFont('helvetica', 'bold'); 
-                doc.text(`Faculty Invigilation Duty`, doc.internal.pageSize.getWidth() / 2, 35, { align: 'center' });
+                addDutySheetPdfHeader(doc, bannerDataURL, state);
         
                 const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
                 const headRow2 = [];
@@ -1486,7 +1652,8 @@
                         } else {
                             phases.forEach(phaseLabel => {
                                 const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
-                                row.push(faculty.join('\n'));
+                                const cellContent = faculty.join('\n\n');
+                                row.push(cellContent);
                             });
                         }
                     });
@@ -1498,7 +1665,7 @@
                     body: body,
                     startY: 35,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [0,0,0] },
+                    styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [0,0,0], textColor: [0, 0, 0] },
                     headStyles: { 
                         fontStyle: 'bold', 
                         halign: 'center', 
@@ -1508,12 +1675,139 @@
                         fontSize: 7, 
                         lineColor: [0, 0, 0]
                     },
-                    bodyStyles: { lineColor: [0, 0, 0], minCellHeight: 12 },
+                    bodyStyles: { lineColor: [0, 0, 0], minCellHeight: 13, textColor: [0, 0, 0] },
                 });
             });
-        
-            doc.save(`${state.examName}_Duty_Sheet_Paginated.pdf`);
+            
+            const fileName = specificPhaseKey 
+                ? `${state.examName}_Duty_Sheet_${specificPhaseKey.replace('|', '_')}.pdf` 
+                : `${state.examName}_Duty_Sheet_Paginated.pdf`;
+            doc.save(fileName);
         }
+
+        async function generateAnswerSheetPDF() {
+            notify('Generating Answer Sheet PDF...', 'success');
+            const bannerDataURL = await imageToBase64('site_banner.png');
+
+            const allExams = [];
+            const currentlyFilteredSubjects = getFilteredSubjects();
+            const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
+
+            for (const date in state.schedule) {
+                for (const phase of state.schedule[date]) {
+                    for (const scheduledItem of phase.subjects) {
+                        if (!currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                            continue;
+                        }
+                        const subject = state.subjectsMasterList.find(s => s.id === scheduledItem.subjectId);
+                        if (subject) {
+                            allExams.push({
+                                date,
+                                time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`,
+                                code: subject.SubjectCode,
+                                name: subject.SubjectName,
+                                branch: subject.Branch,
+                                semester: subject.Semester
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (allExams.length === 0) {
+                notify('No exams scheduled for the selected filters.', 'error');
+                return;
+            }
+
+            // Group by Branch, then by Semester
+            const examsByBranch = allExams.reduce((acc, exam) => {
+                const branchKey = exam.branch || 'Uncategorized';
+                if (!acc[branchKey]) { acc[branchKey] = {}; }
+                if (!acc[branchKey][exam.semester]) { acc[branchKey][exam.semester] = []; }
+                acc[branchKey][exam.semester].push(exam);
+                return acc;
+            }, {});
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            let isFirstBranch = true;
+
+            const sortedBranches = Object.keys(examsByBranch).sort();
+
+            for (const branchName of sortedBranches) {
+                if (!isFirstBranch) {
+                    doc.addPage();
+                }
+
+                addPdfHeader(doc, bannerDataURL, state, 'Answer Sheet Issue Sheet');
+                let startY = 35;
+                
+                isFirstBranch = false;
+                const sortedSemesters = Object.keys(examsByBranch[branchName]).sort();
+
+                for (const semesterName of sortedSemesters) {
+                    const groupName = `${branchName} ${semesterName}`;
+                    const examsInGroup = examsByBranch[branchName][semesterName];
+                    examsInGroup.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    
+                    const tableData = examsInGroup.map(exam => [
+                        '', // Blank Date & Time
+                        exam.code,
+                        exam.name,
+                        '', // Blank Answersheet Count
+                        '', // Blank Faculty Name
+                        ''  // Blank Signature
+                    ]);
+                    
+                    // Check if there is enough space, otherwise add a new page
+                    const tableHeight = (tableData.length + 1) * 8 + 10; // Estimated height
+                    if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
+                        doc.addPage();
+                        addPdfHeader(doc, bannerDataURL, state, 'Answer Sheet Issue Sheet');
+                        startY = 35;
+                    }
+
+
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(groupName.toUpperCase(), 14, startY);
+                    startY += 6;
+
+                    doc.autoTable({
+                        startY: startY,
+                        head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME', 'Answersheet Count', 'Faculty Name', 'Signature']],
+                        body: tableData,
+                        theme: 'grid',
+                        headStyles: {
+                            fillColor: [220, 220, 220],
+                            textColor: [0, 0, 0],
+                            fontStyle: 'bold',
+                            lineColor: [0,0,0],
+                            lineWidth: 0.1
+                        },
+                        styles: {
+                            fontSize: 8,
+                            lineColor: [0, 0, 0],
+                            lineWidth: 0.1,
+                            cellPadding: 2
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 25 }, 
+                            1: { cellWidth: 25 }, 
+                            2: { cellWidth: 'auto' }, 
+                            3: { cellWidth: 20 }, 
+                            4: { cellWidth: 30 }, 
+                            5: { cellWidth: 25 }
+                        }
+                    });
+                    
+                    startY = doc.autoTable.previous.finalY + 10;
+                }
+            }
+
+            doc.save(`${state.examName}_AnswerSheet_Issue.pdf`);
+        }
+
 
         async function generateLoadMatrixPDF() {
             const dutyCounts = getFacultyDutyCount();
@@ -1625,7 +1919,18 @@
                     } else {
                         phases.forEach(phaseLabel => {
                             const faculty = dataByRoomDatePhase[roomName]?.[date]?.[phaseLabel] || [];
-                            tableHTML += `<td class="border p-2 align-top h-24">${faculty.join('<br>')}</td>`;
+                             let totalStudentsInRoom = 0;
+                            const currentPhaseInfo = Object.values(state.schedule).flat().find(p => `${formatTime12Hour(p.startTime)} - ${formatTime12Hour(p.endTime)}` === phaseLabel);
+                            if(currentPhaseInfo) {
+                                const phaseKey = `${date}|${currentPhaseInfo.id}`;
+                                const blocksInRoomForPhase = (state.allotment[phaseKey] || []).filter(b => b.roomName === roomName);
+                                totalStudentsInRoom = blocksInRoomForPhase.reduce((sum, block) => sum + parseInt(block.studentCount || 0), 0);
+                            }
+                            let cellContent = faculty.join('<br><br>');
+                            if (faculty.length > 0) {
+                                // Student count removed from here
+                            }
+                            tableHTML += `<td class="border p-2 align-top h-28">${cellContent}</td>`;
                         });
                     }
                 });
@@ -1648,7 +1953,7 @@
                 content: `<div class="w-full max-w-7xl">
                             <div class="p-4 border-b flex justify-end bg-gray-50 rounded-t-lg">
                                 <button id="download-duty-pdf-final" class="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
-                                    ${ICONS.Printer}<span>Download PDF</span>
+                                    ${ICONS.Printer}<span>Download Full PDF</span>
                                 </button>
                             </div>
                             <div class="p-4">${dutySheetContent}</div>
@@ -1743,6 +2048,52 @@
                 content
             };
             render();
+        }
+
+        function showSeatingPdfOptionsModal() {
+            const phaseKeysWithAllotments = Object.keys(state.allotment).filter(key => state.allotment[key] && state.allotment[key].length > 0).sort();
+
+            let content;
+            if (phaseKeysWithAllotments.length === 0) {
+                content = '<p class="p-6 text-center text-gray-500">No seating arrangements have been created yet.</p>';
+            } else {
+                content = `
+                    <div class="p-6 space-y-4">
+                        <p class="text-sm text-gray-600">Choose a specific session to download, or download all arrangements combined into a single PDF.</p>
+                        <div class="border-t pt-4">
+                            <button data-phase-key="all" class="w-full seating-pdf-option-btn bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 font-semibold mb-4">
+                                Download All in One PDF
+                            </button>
+                            <h4 class="font-semibold text-gray-700 mb-2">Download Individual Session:</h4>
+                            <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                ${phaseKeysWithAllotments.map(phaseKey => {
+                                    const [date, phaseId] = phaseKey.split('|');
+                                    const phase = state.schedule[date]?.find(p => p.id === phaseId);
+                                    if (!phase) return '';
+                                    const label = `${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')} (${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)})`;
+                                    return `<button data-phase-key="${phaseKey}" class="w-full text-left seating-pdf-option-btn bg-gray-100 p-3 rounded-lg hover:bg-gray-200 text-sm">${label}</button>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            state.modal = {
+                visible: true,
+                title: 'Download Seating Arrangement PDF',
+                content
+            };
+            render();
+            
+            document.querySelectorAll('.seating-pdf-option-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const phaseKey = btn.dataset.phaseKey;
+                    state.modal.visible = false;
+                    render(); // Close modal
+                    generateSeatingArrangementPDF(phaseKey);
+                }, { once: true });
+            });
         }
 
         function showAssignFacultyModal(phaseKey, roomName) {
@@ -1964,6 +2315,10 @@
                             <label class="text-sm font-medium text-gray-700">Seat Range</label>
                             <input type="text" name="seatRange" required value="${block.seatRange}" class="block w-full p-2 border rounded-md text-sm mt-1">
                         </div>
+                         <div class="md:col-span-6">
+                            <label class="text-sm font-medium text-gray-700">No. of Students</label>
+                            <input type="number" name="studentCount" required value="${block.studentCount}" class="block w-full p-2 border rounded-md text-sm mt-1">
+                        </div>
                     </div>
                     <div class="pt-6 flex justify-end gap-3">
                         <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
@@ -2082,6 +2437,7 @@
             }
             const copyPhaseBtn = e.target.closest('.copy-phases-btn'); if(copyPhaseBtn) copyPhases(copyPhaseBtn.dataset.date);
             if(e.target.closest('#publish-timetable-btn')) showTimetableModal();
+            if(e.target.closest('#generate-answersheet-btn')) generateAnswerSheetPDF();
             if(e.target.closest('#print-timetable-btn')) generateTimetablePDF();
             if (e.target.closest('#add-room-btn')) addRoom();
             const removeRoomBtn = e.target.closest('.remove-room-btn');
@@ -2166,9 +2522,17 @@
                 render();
                 saveState();
             }
-            if (e.target.closest('#download-seating-pdf')) generateSeatingArrangementPDF();
+
+            if (e.target.closest('#download-seating-pdf')) {
+                showSeatingPdfOptionsModal();
+            }
+            
             if (e.target.closest('#preview-duty-pdf')) showDutySheetModal();
             if (e.target.closest('#download-duty-pdf-final')) generateDutySheetPDF();
+            const downloadPhaseBtn = e.target.closest('.download-phase-duty-btn');
+            if (downloadPhaseBtn) {
+                generateDutySheetPDF(downloadPhaseBtn.dataset.phaseKey);
+            }
             if (e.target.closest('#view-load-matrix-btn')) showLoadMatrixModal();
             if (e.target.closest('#download-load-matrix-pdf')) generateLoadMatrixPDF();
 
@@ -2316,6 +2680,7 @@
                         roomName: formData.get('roomName'),
                         seatRange: formData.get('seatRange'),
                         blockNo: formData.get('blockNo'),
+                        studentCount: formData.get('studentCount')
                     };
                     state.modal.visible = false;
                     notify('Block updated successfully!', 'success');
@@ -2506,5 +2871,4 @@
     </script>
 </body>
 </html>
-
 

@@ -12,10 +12,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .draggable { touch-action: none; }
-        .draggable:active { 
-            cursor: grabbing; 
-            z-index: 50; 
-            transform: scale(1.05); 
+        .draggable:active {
+            cursor: grabbing;
+            z-index: 50;
+            transform: scale(1.05);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         .drop-zone-active {
@@ -42,7 +42,7 @@
             0% { transform: scale(0.95); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
-        
+
         /* Mobile-specific UI changes */
         @media (max-width: 768px) {
             .desktop-only { display: none; }
@@ -55,11 +55,10 @@
 <body class="bg-gray-100">
 
     <div id="app-container" class="flex flex-col h-screen font-sans">
-        <!-- Header -->
         <header class="bg-white shadow-md p-4 sticky top-0 z-20">
             <div class="relative flex items-center justify-between max-w-7xl mx-auto mb-4">
                 <div class="flex items-center gap-4">
-                    <img src="site_banner.png" alt="SOCSET Exam Cell Logo" class="h-14">
+                    <img id="site-banner-img" src="site_banner.png" alt="SOCSET Exam Cell Logo" class="h-14" crossorigin="anonymous">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-800">ExamFlow</h1>
                         <p id="university-name" class="text-sm font-semibold text-gray-600"></p>
@@ -76,7 +75,6 @@
             <div id="stepper-container" class="max-w-5xl mx-auto"></div>
         </header>
 
-        <!-- Main Content -->
         <main class="flex-1 p-4 md:p-8 overflow-y-auto">
             <div id="notification-container" class="fixed top-24 right-5 z-[100]"></div>
             <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg min-h-full flex flex-col max-w-7xl mx-auto">
@@ -125,7 +123,7 @@
             roomsMaster: [],
             facultyMaster: [],
             dutyAssignments: {},
-            allotment: {}, 
+            allotment: {},
             copiedAllotment: null, // { sourceKey: string, blocks: [] }
             scheduler: {
                 searchTerm: '',
@@ -142,7 +140,7 @@
         const SCHOOL_NAME = 'School of Computer Science, Engineering and Technology';
         const EXAM_TYPES = ["CET 1", "CET 2", "MST", "REMEDIAL"];
         const BRANCHES = ["DIPLOMA", "BCA", "MCA", "BTECH"];
-        const SPECIALIZATIONS = ["CSE", "IT", "AI", "CS", "DS", "CSA"];
+        const SPECIALIZATIONS = ["CSE", "IT", "AI", "CS", "DS", "CSA", "CSN"];
         const SEMESTERS = Array.from({ length: 8 }, (_, i) => `Sem ${i + 1}`);
         const STEPS = [
             { number: 1, name: 'Details' }, { number: 2, name: 'Subjects' },
@@ -228,14 +226,14 @@
         function renderStepper() {
             const baseButtonClass = "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all";
             $('#stepper-container').innerHTML = `<div class="flex items-center justify-between">${STEPS.map(step => {
-                const isCompleted = state.currentStep > step.number; 
-                const isCurrent = state.currentStep === step.number; 
-                const canClick = isCompleted; 
+                const isCompleted = state.currentStep > step.number;
+                const isCurrent = state.currentStep === step.number;
+                const canClick = isCompleted;
                 let stepClass = '';
                 if (isCurrent) stepClass = 'bg-red-600 text-white border-red-600 font-bold';
                 else if (isCompleted) stepClass = 'bg-green-500 text-white border-green-500';
                 else stepClass = 'bg-white text-gray-600 border-gray-300';
-                
+
                 return `${step.number > 1 ? `<div class="flex-1 h-0.5 ${isCompleted || isCurrent ? 'bg-red-500' : 'bg-gray-300'}"></div>` : ''}
                         <div class="flex flex-col items-center text-center w-28">
                             <button data-step="${step.number}" class="step-btn ${baseButtonClass} ${stepClass} ${canClick ? 'cursor-pointer hover:border-red-400' : 'cursor-default'}">
@@ -245,7 +243,7 @@
                         </div>`
             }).join('')}</div>`;
         }
-        
+
         function renderNavigationButtons() {
             const baseBtn = "flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-sm transition-all";
             $('#prev-button-container').innerHTML = state.currentStep > 1 ? `<button id="prev-step" class="${baseBtn} text-gray-700 bg-gray-200 hover:bg-gray-300">${ICONS.ArrowLeft} Previous</button>` : '';
@@ -266,7 +264,9 @@
             container.innerHTML = `<div>${content}</div>`;
              if (state.currentStep === 4) {
                  document.querySelectorAll('.add-block-form [data-action="update-specializations"]').forEach(el => {
-                    handleSubjectChange(el);
+                    const selectedOption = el.options[el.selectedIndex];
+                    const subjectId = selectedOption.dataset.subjectId;
+                    handleSubjectChange(subjectId, el.closest('form'));
                  });
              }
         }
@@ -275,7 +275,7 @@
         function renderStep1_ExamDetails() {
             const { session, academicYear, type, branches, specializations, semesters } = state.examDetails;
             const renderToggleButtons = (options, selected, type) => options.map(opt => `<button class="btn-toggle text-sm px-4 py-1.5 border rounded-full transition-colors ${selected.includes(opt) ? 'btn-toggle-active' : 'hover:bg-gray-100 hover:border-gray-400'}" data-type="${type}" data-value="${opt}">${opt}</button>`).join('');
-            
+
             return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Exam Configuration</h2>
                 <div class="space-y-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -301,7 +301,7 @@
             const availableBranches = branches.length > 0 ? branches : BRANCHES;
             const availableSemesters = semesters.length > 0 ? semesters : SEMESTERS;
             const availableSpecs = specializations.length > 0 ? specializations : SPECIALIZATIONS;
-            
+
             return `<h2 class="text-3xl font-bold text-gray-800 mb-8">Manage Subjects</h2>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div>
@@ -310,7 +310,7 @@
                             <div class="space-y-4">
                                 <input type="text" id="subject-code" placeholder="Subject Code" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500">
                                 <input type="text" id="subject-name" placeholder="Subject Name" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500">
-                                
+
                                 <div>
                                     <label class="text-sm font-medium text-gray-600 mb-1 block">Branch</label>
                                     <select id="subject-branch" class="w-full p-2.5 border rounded-lg focus:ring-red-500 focus:border-red-500 bg-white">
@@ -355,7 +355,7 @@
                     </div>
                 </div>`;
         }
-        
+
         function getFilteredSubjects() {
             const { branches, semesters, specializations } = state.examDetails;
             if (branches.length === 0 && semesters.length === 0 && specializations.length === 0) return state.subjectsMasterList;
@@ -416,19 +416,19 @@
                     </div>
                 </div>`;
         }
-        
+
         function renderUnscheduledSubjectsList() {
             const schedulableSubjects = getFilteredSubjects();
             const searchTerm = state.scheduler.searchTerm.toLowerCase();
-            const searchedSubjects = searchTerm 
-                ? schedulableSubjects.filter(s => 
-                    (s.SubjectName && String(s.SubjectName).toLowerCase().includes(searchTerm)) || 
+            const searchedSubjects = searchTerm
+                ? schedulableSubjects.filter(s =>
+                    (s.SubjectName && String(s.SubjectName).toLowerCase().includes(searchTerm)) ||
                     (s.SubjectCode && String(s.SubjectCode).toLowerCase().includes(searchTerm))
-                  ) 
+                  )
                 : schedulableSubjects;
 
             if (!searchedSubjects.length) return '<div class="text-center text-gray-500 py-10"><p>No subjects match the current filters.</p></div>';
-            
+
             return searchedSubjects.map(s => `
                 <div id="subject-${s.id}" class="draggable flex items-start gap-3 p-3 rounded-lg shadow-sm border ${getColorForBranch(s.Branch)} cursor-grab transition-shadow hover:shadow-md" draggable="true" data-id="${s.id}" data-type="subject">
                     <div class="flex-shrink-0 mt-1 text-gray-400">
@@ -460,7 +460,7 @@
                 const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 const isScheduled = !!state.schedule[dateString] && state.schedule[dateString].length > 0;
                 const isSelected = state.scheduler.selectedDate === dateString;
-                
+
                 dayCells += `
                     <div class="relative flex justify-center">
                         <button data-date="${dateString}" class="calendar-day w-10 h-10 rounded-full transition-colors flex items-center justify-center
@@ -545,10 +545,11 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                                 ${phase.subjects.map(scheduledItem => {
                                     const s = state.subjectsMasterList.find(sub => sub.id === scheduledItem.subjectId);
+                                    const studentTypeLabel = scheduledItem.studentType === 'detained' ? ' (Detained)' : '';
                                     return s ? `
                                         <div class="flex items-center justify-between p-2 rounded-md text-xs ${getColorForBranch(s.Branch)} shadow-sm">
                                             <div>
-                                                <span class="font-semibold">${s.SubjectName} (${s.SubjectCode})</span>
+                                                <span class="font-semibold">${s.SubjectName} (${s.SubjectCode})${studentTypeLabel}</span>
                                                 <span class="block text-red-700 font-bold text-[10px] uppercase">${scheduledItem.examType}</span>
                                             </div>
                                             <button class="remove-subject-from-phase-btn ml-2 text-gray-500 hover:text-red-700" data-date="${date}" data-phase-id="${phaseId}" data-instance-id="${scheduledItem.instanceId}">${ICONS.X}</button>
@@ -567,7 +568,7 @@
                     </div>
                 </div>`;
         }
-        
+
         // --- STEP 4: Allotment & Rooms (IMPROVED) ---
         function renderStep4_AllotmentAndRooms() {
             let allotmentHtml = '';
@@ -579,10 +580,9 @@
                 for (const phase of state.schedule[date]) {
                     const phaseKey = `${date}|${phase.id}`;
                     if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
-                    
-                    const subjectIdsInPhase = [...new Set(phase.subjects.map(item => item.subjectId))];
-                    const subjectsInPhase = subjectIdsInPhase.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
-                    
+
+                    const scheduledItems = phase.subjects;
+
                     const phaseHasBlocks = state.allotment[phaseKey] && state.allotment[phaseKey].length > 0;
                     const isCopiedSource = state.copiedAllotment && state.copiedAllotment.sourceKey === phaseKey;
 
@@ -606,19 +606,26 @@
                                    ` : ''}
                                 </div>
                             </div>
-                            
+
                             <div class="bg-white p-4 rounded-lg border mb-4">
                                 <h4 class="font-semibold mb-3 text-gray-700">Add a New Block</h4>
-                                ${subjectsInPhase.length > 0 && state.roomsMaster.length > 0 ? `
-                                <form class="add-block-form grid grid-cols-1 md:grid-cols-12 gap-3 items-end" data-phase-key="${phaseKey}">
-                                    <div class="md:col-span-3">
+                                ${scheduledItems.length > 0 && state.roomsMaster.length > 0 ? `
+                                <form class="add-block-form grid grid-cols-1 md:grid-cols-12 gap-x-3 gap-y-4 items-end" data-phase-key="${phaseKey}">
+                                    <div class="md:col-span-12">
                                         <label class="text-xs font-medium text-gray-600">Subject</label>
-                                        <select name="subjectId" data-action="update-specializations" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                        <select name="scheduledInstanceId" data-action="update-specializations" class="block w-full p-2 border rounded-md text-sm mt-1">
                                             <option value="">-- Select Subject --</option>
-                                            ${subjectsInPhase.map(s => `<option value="${s.id}">${s.SubjectName} (${s.Branch} - ${s.Semester})</option>`).join('')}
+                                            ${scheduledItems.map(item => {
+                                                const s = state.subjectsMasterList.find(sub => sub.id === item.subjectId);
+                                                if (!s) return '';
+                                                const studentTypeLabel = item.studentType === 'detained' ? ' (Detained)' : '';
+                                                const optionText = `${s.SubjectName} (${s.Branch} - ${s.Semester})${studentTypeLabel}`;
+                                                return `<option value="${item.instanceId}" data-subject-id="${s.id}">${optionText}</option>`;
+                                            }).join('')}
                                         </select>
                                     </div>
-                                    <div class="specialization-container md:col-span-2"></div>
+
+                                    <div class="specialization-container md:col-span-3"></div>
                                     <div class="md:col-span-2">
                                         <label class="text-xs font-medium text-gray-600">Block No.</label>
                                         <input type="text" name="blockNo" required placeholder="e.g., 1" class="block w-full p-2 border rounded-md text-sm mt-1">
@@ -629,15 +636,15 @@
                                             ${state.roomsMaster.map(r => `<option value="${r.name}">${r.name}</option>`).join('')}
                                         </select>
                                     </div>
-                                    <div class="md:col-span-2">
+                                    <div class="md:col-span-3">
                                         <label class="text-xs font-medium text-gray-600">Seat Range</label>
                                         <input type="text" name="seatRange" required placeholder="e.g., A1-A20" class="block w-full p-2 border rounded-md text-sm mt-1">
                                     </div>
-                                    <div class="md:col-span-1">
+                                    <div class="md:col-span-2">
                                         <label class="text-xs font-medium text-gray-600">Students</label>
                                         <input type="number" name="studentCount" required placeholder="e.g., 20" class="block w-full p-2 border rounded-md text-sm mt-1">
                                     </div>
-                                    <button type="submit" class="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 h-fit text-sm">Add</button>
+                                    <button type="submit" class="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 h-fit text-sm md:col-start-12">Add</button>
                                 </form>
                                 ` : `<p class="text-sm text-center text-gray-500">${state.roomsMaster.length === 0 ? 'Please add rooms below before creating blocks.' : 'No subjects scheduled in this phase.'}</p>`}
                             </div>
@@ -653,7 +660,7 @@
             if (!allotmentHtml) {
                 allotmentHtml = '<div class="text-center text-gray-500 py-10"><p>No exams scheduled in Step 3.</p><p class="text-sm">Complete the schedule to create seating blocks.</p></div>';
             }
-            
+
             const totalCapacity = state.roomsMaster.reduce((sum, room) => sum + parseInt(room.capacity || 0), 0);
 
             return `
@@ -709,7 +716,7 @@
                 </div>
             `;
         }
-        
+
         function renderAllotmentBlocksForPhase(phaseKey) {
             const blocks = state.allotment[phaseKey] || [];
             if (blocks.length === 0) {
@@ -761,6 +768,9 @@
                         if (block.specialization) {
                             subjectText += ` - ${block.specialization}`;
                         }
+                        if (block.isDetained) {
+                            subjectText += ` (Detained)`;
+                        }
                     }
                     tableHtml += `
                         <tr class="border-t">
@@ -776,7 +786,7 @@
                         </tr>
                     `;
                 });
-                
+
                 const capacityUtilization = roomCapacity > 0 ? totalStudentsInRoom / roomCapacity : 0;
                 let capacityClass = 'bg-gray-50';
                 if (capacityUtilization > 1) {
@@ -799,7 +809,7 @@
             tableHtml += `</tbody></table>`;
             return tableHtml;
         }
-        
+
         // --- STEP 5: Duty Assignment (IMPROVED) ---
         function getFacultyDutyCount() {
             const counts = {};
@@ -822,10 +832,10 @@
 
             for (const date of sortedDates) {
                 if (!state.schedule[date] || state.schedule[date].length === 0) continue;
-                
+
                 for (const phase of state.schedule[date]) {
                     const phaseKey = `${date}|${phase.id}`;
-                    
+
                     assignmentHtml += `
                         <div class="bg-gray-50 p-5 rounded-xl border mb-6">
                              <div class="flex justify-between items-center mb-4">
@@ -902,7 +912,7 @@
             const dutyCounts = getFacultyDutyCount();
             const searchTerm = state.facultySearchTerm.toLowerCase();
             const filteredFaculty = state.facultyMaster.filter(f => f.name.toLowerCase().includes(searchTerm));
-            
+
             if(filteredFaculty.length === 0) return '<p class="text-sm text-center text-gray-500 py-4">No faculty found.</p>';
 
             return filteredFaculty.map(fac => `
@@ -920,7 +930,7 @@
 
         function renderDutyRoomsForPhase(phaseKey) {
             const blocksInPhase = state.allotment[phaseKey] || [];
-            
+
             const roomsInPhase = [...new Set(blocksInPhase.map(b => b.roomName))];
              const sortedRoomsMeta = roomsInPhase.map(roomName => {
                 const firstBlock = blocksInPhase.find(b => b.roomName === roomName);
@@ -929,14 +939,14 @@
 
 
             if (roomsInPhase.length === 0) return '<p class="text-sm text-gray-500">No rooms have assigned blocks for this session.</p>';
-            
+
             return sortedRoomsMeta.map(({ roomName }) => {
                 const assignedFaculty = state.dutyAssignments[phaseKey]?.[roomName] || [];
                 const blocksInThisRoom = blocksInPhase.filter(b => b.roomName === roomName);
                 const totalStudentsInRoom = blocksInThisRoom.reduce((sum, block) => sum + parseInt(block.studentCount || 0), 0);
                 const roomData = state.roomsMaster.find(r => r.name === roomName);
                 const roomCapacity = roomData ? roomData.capacity : 0;
-                
+
                 let capacityClass = 'text-gray-800';
                 if (totalStudentsInRoom > 50) {
                     capacityClass = 'text-red-600';
@@ -957,14 +967,14 @@
                                 Assign Faculty
                             </button>
                         </div>
-                        
-                        <!-- Block Details -->
+
                         <div class="mt-3 space-y-2 text-xs border-t pt-3">
                             ${blocksInThisRoom.map(block => {
                                 const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
                                 if (!subject) return '';
                                 let subjectInfo = `${subject.Branch} - ${subject.Semester}`;
                                 if (block.specialization) subjectInfo += ` (${block.specialization})`;
+                                 if (block.isDetained) subjectInfo += ' (Detained)';
                                 return `
                                     <div class="p-2 bg-gray-50 rounded-md border">
                                         <p class="font-bold text-gray-800">Block ${block.blockNo}: <span class="font-normal">${subject.SubjectName} (${subject.SubjectCode})</span></p>
@@ -974,7 +984,6 @@
                             }).join('')}
                         </div>
 
-                        <!-- Drop Zone -->
                         <div class="drop-zone mt-3 min-h-[60px] border-2 border-dashed border-gray-300 rounded-lg p-2 transition-all" data-phase-key="${phaseKey}" data-room="${roomName}" data-type="faculty">
                              ${assignedFaculty.length > 0 ? `
                                  <div class="flex flex-wrap gap-2">
@@ -1064,14 +1073,36 @@
         }
         function handleAddBlock(form, phaseKey) {
             const formData = new FormData(form);
+            const instanceId = formData.get('scheduledInstanceId');
+
+            let scheduledItem = null;
+            if (instanceId) {
+                for (const date in state.schedule) {
+                    for (const phase of state.schedule[date]) {
+                        const found = phase.subjects.find(item => item.instanceId === instanceId);
+                        if (found) {
+                            scheduledItem = found;
+                            break;
+                        }
+                    }
+                    if (scheduledItem) break;
+                }
+            }
+
+            if (!scheduledItem) {
+                notify('Selected subject is invalid. Please re-select.', 'error');
+                return;
+            }
+
             const block = {
                 id: `block_${Date.now()}`,
-                subjectId: formData.get('subjectId'),
+                subjectId: scheduledItem.subjectId,
                 specialization: formData.get('specialization') || null,
                 roomName: formData.get('roomName'),
                 seatRange: formData.get('seatRange'),
                 blockNo: formData.get('blockNo'),
-                studentCount: formData.get('studentCount')
+                studentCount: formData.get('studentCount'),
+                isDetained: scheduledItem.studentType === 'detained'
             };
             if(block.subjectId && block.roomName && block.seatRange && block.blockNo && block.studentCount) {
                 if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
@@ -1162,17 +1193,70 @@
         }
 
         // --- PDF & Modal & DYNAMIC HELPERS ---
-        
+
+        async function getImageDataUrlFromDOM(imgId) {
+            return new Promise((resolve) => {
+                const img = document.getElementById(imgId);
+                if (!img) {
+                    console.error("Image element for PDF not found.");
+                    resolve(null);
+                    return;
+                }
+
+                // If the image is already loaded and has dimensions, use it.
+                if (img.complete && img.naturalHeight !== 0) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                } else {
+                    // Otherwise, set up onload and onerror listeners.
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    img.onerror = () => {
+                        console.error("Image could not be loaded for PDF generation.");
+                        resolve(null); // Resolve with null on error
+                    };
+                    // Double-check src as a final measure
+                    if (!img.src) {
+                        console.error("Image has no src attribute.");
+                        resolve(null);
+                    }
+                }
+            });
+        }
+
+
         function addPdfHeader(doc, bannerDataURL, state, title = 'SOCSET', subTitle = null) {
-            const bannerWidth = 70; // Banner is wider than the logo
+            const bannerWidth = 70;
             const bannerHeight = 15;
             const bannerX = 14;
             const bannerY = 10;
             const rightMargin = doc.internal.pageSize.getWidth() - 14;
 
-            // Left side: Banner Image
+            // Left side: Banner Image or Fallback Text
             if (bannerDataURL) {
-                doc.addImage(bannerDataURL, 'PNG', bannerX, bannerY, bannerWidth, bannerHeight);
+                try {
+                    doc.addImage(bannerDataURL, 'PNG', bannerX, bannerY, bannerWidth, bannerHeight);
+                } catch(e) {
+                    console.error("jsPDF error adding image:", e);
+                    // If addImage fails, draw the text
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('ITM SLS BARODA UNIVERSITY', bannerX, bannerY + 10);
+                }
+            } else {
+                 doc.setFontSize(14);
+                 doc.setFont('helvetica', 'bold');
+                 doc.text('ITM SLS BARODA UNIVERSITY', bannerX, bannerY + 10);
             }
 
             // Right side: Exam Info
@@ -1180,7 +1264,7 @@
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(0, 0, 0);
             doc.text(title, rightMargin, bannerY + 4, { align: 'right' });
-            
+
             const examNameString = `${state.examName}`; // Use the full generated name
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
@@ -1204,14 +1288,25 @@
             const bannerY = 10;
             const rightMargin = doc.internal.pageSize.getWidth() - 14;
 
-            if (bannerDataURL) {
-                doc.addImage(bannerDataURL, 'PNG', bannerX, bannerY, bannerWidth, bannerHeight);
+             if (bannerDataURL) {
+                try {
+                     doc.addImage(bannerDataURL, 'PNG', bannerX, bannerY, bannerWidth, bannerHeight);
+                } catch(e) {
+                     console.error("jsPDF error adding image:", e);
+                     doc.setFontSize(14);
+                     doc.setFont('helvetica', 'bold');
+                     doc.text('ITM SLS BARODA UNIVERSITY', bannerX, bannerY + 10);
+                }
+            } else {
+                 doc.setFontSize(14);
+                 doc.setFont('helvetica', 'bold');
+                 doc.text('ITM SLS BARODA UNIVERSITY', bannerX, bannerY + 10);
             }
 
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             doc.text('SOCSET - Faculty Invigilation Duty', rightMargin, bannerY + 5, { align: 'right' });
-            
+
             const examNameString = `${state.examName}`;
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
@@ -1223,54 +1318,85 @@
         }
 
         function generateTimetableHTML() {
-            const allExams = [];
+            const regularScheduledItems = [];
+            const detainedScheduledItems = [];
+
             const currentlyFilteredSubjects = getFilteredSubjects();
             const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
-            const selectedSpecs = state.examDetails.specializations;
 
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
                     for (const scheduledItem of phase.subjects) {
-                        if (!currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
-                            continue; // This subject does not match the current filters from Step 1.
-                        }
-
-                        const subject = state.subjectsMasterList.find(s => s.id === scheduledItem.subjectId);
-                        // We know subject is not null because of the check above
-                        
-                        const examData = {
-                            date,
-                            time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`,
-                            code: subject.SubjectCode,
-                            name: `${subject.SubjectName} (${scheduledItem.examType})`,
-                        };
-
-                        if (subject.Specialization && subject.Specialization.length > 0) {
-                            const relevantSpecs = selectedSpecs.length > 0
-                                ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
-                                : subject.Specialization;
-
-                            if(relevantSpecs.length > 0) {
-                                relevantSpecs.forEach(spec => {
-                                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
-                                });
-                            } else if (selectedSpecs.length === 0) {
-                                 subject.Specialization.forEach(spec => {
-                                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
-                                });
+                        if (currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                             if (scheduledItem.studentType === 'detained') {
+                                detainedScheduledItems.push({ ...scheduledItem, date, phase });
+                            } else {
+                                regularScheduledItems.push({ ...scheduledItem, date, phase });
                             }
-                        } else {
-                            allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
                         }
                     }
                 }
             }
 
-            if (allExams.length === 0) { return '<p class="text-center py-8">No exams have been scheduled for the selected filters.</p>'; }
+            const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
+            const mainHeaderHtml = `<div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">${SCHOOL_NAME.toUpperCase()}</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p></div>`;
+
+            let regularHtml = '';
+            if (regularScheduledItems.length > 0) {
+                 regularHtml = `<h2 class="text-2xl font-bold text-red-700 mt-4 text-center">${state.examDetails.type.join(' & ')} TIME-TABLE</h2>` + createTableHtmlForItems(regularScheduledItems);
+            }
+
+            let detainedHtml = '';
+            if (detainedScheduledItems.length > 0) {
+                detainedHtml = `<div class="page-break-after"></div> <h2 class="text-2xl font-bold text-red-700 mt-8 text-center">${state.examDetails.type.join(' & ')} TIME-TABLE (DETAINED STUDENTS)</h2>` + createTableHtmlForItems(detainedScheduledItems);
+            }
+
+            if (regularScheduledItems.length === 0 && detainedScheduledItems.length === 0) {
+                return '<p class="text-center py-8">No exams have been scheduled for the selected filters.</p>';
+            }
+
+            return `<div id="timetable-to-print" class="p-8 bg-white">${mainHeaderHtml}${regularHtml}${detainedHtml}</div>`;
+        }
+
+        function createTableHtmlForItems(scheduledItems) {
+             const selectedSpecs = state.examDetails.specializations;
+             const allExams = [];
+
+             for (const item of scheduledItems) {
+                const subject = state.subjectsMasterList.find(s => s.id === item.subjectId);
+                if (!subject) continue;
+
+                const examData = {
+                    date: item.date,
+                    time: `${formatTime12Hour(item.phase.startTime)} to ${formatTime12Hour(item.phase.endTime)}`,
+                    code: subject.SubjectCode,
+                    name: `${subject.SubjectName} (${item.examType})`,
+                };
+
+                if (subject.Specialization && subject.Specialization.length > 0) {
+                    const relevantSpecs = selectedSpecs.length > 0
+                        ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
+                        : subject.Specialization;
+
+                    if (relevantSpecs.length > 0) {
+                        relevantSpecs.forEach(spec => {
+                            allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                        });
+                    } else if (selectedSpecs.length === 0) {
+                         subject.Specialization.forEach(spec => {
+                            allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
+                        });
+                    }
+                } else {
+                    allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                }
+             }
+
+            if (allExams.length === 0) return '';
             const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) { acc[exam.group] = []; } acc[exam.group].push(exam); return acc; }, {});
             for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
-            const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
-            let html = `<div id="timetable-to-print" class="p-8 bg-white"><div class="text-center mb-8"><h1 class="text-3xl font-bold text-gray-800">${UNIVERSITY_NAME}</h1><p class="text-md text-gray-600">${SCHOOL_NAME.toUpperCase()}</p><p class="text-md font-semibold text-gray-700 mt-2">${academicSession} SEMESTER ${state.examDetails.academicYear}</p><h2 class="text-2xl font-bold text-red-700 mt-4">${state.examDetails.type.join(' & ')} TIME-TABLE</h2></div>`;
+
+            let html = '';
             const sortedGroups = Object.keys(examsByGroup).sort();
             for (const groupName of sortedGroups) {
                 html += `<div class="mb-8 page-break-after"><h3 class="text-xl font-bold text-gray-800 mb-3 p-2 bg-gray-100 rounded-md">${groupName}</h3><table class="w-full border-collapse text-sm"><thead><tr class="bg-gray-200"><th class="border p-3 text-left w-1/3">DATE & TIME</th><th class="border p-3 text-left w-1/4">COURSE CODE</th><th class="border p-3 text-left">COURSE NAME</th></tr></thead><tbody>`;
@@ -1280,125 +1406,106 @@
                 });
                 html += `</tbody></table></div>`;
             }
-            html += `</div>`;
             return html;
         }
 
         async function generateTimetablePDF() {
             notify('Generating PDF, please wait...', 'success');
-            const bannerDataURL = await imageToBase64('site_banner.png');
-            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
+            const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
 
-            const allExams = [];
+            const regularScheduledItems = [];
+            const detainedScheduledItems = [];
+
             const currentlyFilteredSubjects = getFilteredSubjects();
             const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
-            const selectedSpecs = state.examDetails.specializations;
 
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
                     for (const scheduledItem of phase.subjects) {
-                        if (!currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
-                            continue;
-                        }
-                        const subject = state.subjectsMasterList.find(s => s.id === scheduledItem.subjectId);
-                        if (subject) {
-                             const examData = { 
-                                 date, 
-                                 time: `${formatTime12Hour(phase.startTime)} to ${formatTime12Hour(phase.endTime)}`, 
-                                 code: subject.SubjectCode, 
-                                 name: `${subject.SubjectName} (${scheduledItem.examType})`
-                            };
-                            
-                            if (subject.Specialization && subject.Specialization.length > 0) {
-                                 const relevantSpecs = selectedSpecs.length > 0
-                                    ? subject.Specialization.filter(spec => selectedSpecs.includes(spec))
-                                    : subject.Specialization;
-                                
-                                if(relevantSpecs.length > 0) {
-                                    relevantSpecs.forEach(spec => {
-                                        allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
-                                    });
-                                } else if (selectedSpecs.length === 0) {
-                                    subject.Specialization.forEach(spec => {
-                                        allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` });
-                                    });
-                                }
+                        if (currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                             if (scheduledItem.studentType === 'detained') {
+                                detainedScheduledItems.push({ ...scheduledItem, date, phase });
                             } else {
-                                allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                                regularScheduledItems.push({ ...scheduledItem, date, phase });
                             }
                         }
                     }
                 }
             }
-            
-            if (allExams.length === 0) { notify('No exams scheduled for the selected filters to generate a PDF.', 'error'); return; }
-            const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) acc[exam.group] = []; acc[exam.group].push(exam); return acc; }, {});
-             for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
+
+            if (regularScheduledItems.length === 0 && detainedScheduledItems.length === 0) {
+                notify('No exams scheduled for the selected filters to generate a PDF.', 'error');
+                return;
+            }
+
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            const examsByCourse = Object.keys(examsByGroup).reduce((acc, groupName) => { const course = groupName.split(' ')[0]; if (!acc[course]) acc[course] = {}; acc[course][groupName] = examsByGroup[groupName]; return acc; }, {});
             let isFirstPage = true;
-            const sortedCourses = Object.keys(examsByCourse).sort();
-            for (const courseName of sortedCourses) {
+
+            const processItemsToPdf = (items, title) => {
+                if(items.length === 0) return doc.autoTable.previous.finalY || 55;
+
                 if (!isFirstPage) doc.addPage();
-                
+                isFirstPage = false;
+
                 addPdfHeader(doc, bannerDataURL, state);
-                
+
                 const academicSession = state.examDetails.session.toUpperCase().includes("SUMMER") ? "EVEN" : "ODD";
                 doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER`, doc.internal.pageSize.getWidth() / 2, 38, { align: 'center' });
-                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0,0,0); doc.text(`TIME-TABLE`, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
-                
+                doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0,0,0); doc.text(title, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
+
                 let startY = 55;
-                const specializationGroups = examsByCourse[courseName];
-                const sortedGroups = Object.keys(specializationGroups).sort();
+                const selectedSpecs = state.examDetails.specializations;
+                const allExams = [];
+
+                for (const item of items) {
+                   const subject = state.subjectsMasterList.find(s => s.id === item.subjectId);
+                   if (!subject) continue;
+
+                   const examData = {
+                       date: item.date,
+                       time: `${formatTime12Hour(item.phase.startTime)} to ${formatTime12Hour(item.phase.endTime)}`,
+                       code: subject.SubjectCode,
+                       name: `${subject.SubjectName} (${item.examType})`,
+                   };
+
+                   if (subject.Specialization && subject.Specialization.length > 0) {
+                       const relevantSpecs = selectedSpecs.length > 0 ? subject.Specialization.filter(spec => selectedSpecs.includes(spec)) : subject.Specialization;
+                       if (relevantSpecs.length > 0) {
+                           relevantSpecs.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
+                       } else if (selectedSpecs.length === 0) {
+                            subject.Specialization.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
+                       }
+                   } else {
+                       allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                   }
+                }
+                const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) acc[exam.group] = []; acc[exam.group].push(exam); return acc; }, {});
+                for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
+
+                const sortedGroups = Object.keys(examsByGroup).sort();
                 for (const groupName of sortedGroups) {
-                    const tableHeight = (specializationGroups[groupName].length + 1) * 8 + 15;
+                    const tableHeight = (examsByGroup[groupName].length + 1) * 8 + 15;
                     if (startY + tableHeight > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); startY = 20; }
-                    const tableData = specializationGroups[groupName].map(exam => { const formattedDate = new Date(exam.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); return [`${formattedDate}\n${exam.time}`, exam.code, exam.name]; });
+                    const tableData = examsByGroup[groupName].map(exam => { const formattedDate = new Date(exam.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); return [`${formattedDate}\n${exam.time}`, exam.code, exam.name]; });
                     doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text(groupName, 14, startY);
-                    doc.autoTable({ 
-                        startY: startY + 6, 
-                        head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME']], 
-                        body: tableData, 
-                        theme: 'grid', 
-                        headStyles: { 
-                            fillColor: [255, 255, 255], 
-                            textColor: [0, 0, 0], 
-                            lineColor: [0, 0, 0], 
-                            fontStyle: 'bold' 
-                        }, 
-                        styles: { 
-                            cellPadding: 2.5, 
-                            fontSize: 9, 
-                            lineColor: [0, 0, 0] 
-                        }, 
-                        columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 40 } } 
+                    doc.autoTable({
+                        startY: startY + 6,
+                        head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME']],
+                        body: tableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineColor: [0, 0, 0], fontStyle: 'bold' },
+                        styles: { cellPadding: 2.5, fontSize: 9, lineColor: [0, 0, 0] },
+                        columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 40 } }
                     });
                     startY = doc.autoTable.previous.finalY + 15;
                 }
-                isFirstPage = false;
-            }
+            };
+
+            processItemsToPdf(regularScheduledItems, "TIME-TABLE");
+            processItemsToPdf(detainedScheduledItems, "TIME-TABLE (DETAINED STUDENTS)");
+
             doc.save(`${state.examName}_Timetable.pdf`);
-        }
-        
-        async function imageToBase64(url) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    console.error(`Failed to fetch image: ${url}, Status: ${response.status}`);
-                    return null;
-                };
-                const blob = await response.blob();
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            } catch (error) {
-                console.error("Error converting image to base64:", error);
-                return null;
-            }
         }
 
         async function generateSeatingArrangementPDF(phaseKeyOrAll) {
@@ -1412,8 +1519,8 @@
             }
             notify('Generating Seating Arrangement PDF...', 'success');
 
-            const bannerDataURL = await imageToBase64('site_banner.png');
-            
+            const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
+
             let useLegalFormat = false;
             if (phaseKeyOrAll === 'all') {
                 let maxRoomCount = 0;
@@ -1449,7 +1556,7 @@
                 if (!isFirstPageOfDocument) {
                     doc.addPage(useLegalFormat ? 'legal' : 'a4');
                 }
-                
+
                 const subTitle = `Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')} | Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`;
                 addPdfHeader(doc, bannerDataURL, state, 'SOCSET Seating Arrangement', subTitle);
 
@@ -1466,7 +1573,7 @@
                     const blockB = (blocksByRoom[b][0].blockNo || '0').toString();
                     return blockA.localeCompare(blockB, undefined, { numeric: true });
                 });
-                
+
                 let currentY = startY;
 
                 // Dynamic Font Sizing Logic
@@ -1485,7 +1592,7 @@
 
                 for (const roomName of sortedRooms) {
                     const roomBlocks = blocksByRoom[roomName];
-                    
+
                     const body = roomBlocks.map(block => {
                         const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
                         let branchInfo = 'Unknown';
@@ -1493,6 +1600,9 @@
                             branchInfo = `${subject.Branch} - ${subject.Semester}`;
                             if (block.specialization) {
                                 branchInfo += ` / ${block.specialization}`;
+                            }
+                            if (block.isDetained) {
+                                branchInfo += ' (Detained)';
                             }
                         }
                         return [
@@ -1502,11 +1612,11 @@
                             block.studentCount
                         ];
                     });
-                    
+
                     const tableHeight = (body.length + 2) * (fontSize * 0.7); // Estimate height
                     if (currentY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
                         doc.addPage(useLegalFormat ? 'legal' : 'a4');
-                        currentY = 20; 
+                        currentY = 20;
                         addPdfHeader(doc, bannerDataURL, state, 'SOCSET Seating Arrangement', subTitle + " (Contd.)");
                     }
 
@@ -1517,15 +1627,15 @@
                             ['Block', 'Branch / Semester / Spec', 'Seat Range', 'Students']
                         ].concat(body),
                         theme: 'grid',
-                        styles: { 
-                            cellPadding: cellPadding, 
-                            fontSize: fontSize, 
-                            lineColor: [0, 0, 0], 
+                        styles: {
+                            cellPadding: cellPadding,
+                            fontSize: fontSize,
+                            lineColor: [0, 0, 0],
                             textColor: [0, 0, 0]
                         },
-                        headStyles: { 
-                            fillColor: [240, 240, 240], 
-                            textColor: [0, 0, 0], 
+                        headStyles: {
+                            fillColor: [240, 240, 240],
+                            textColor: [0, 0, 0],
                             fontStyle: 'bold',
                             lineWidth: 0.1,
                         },
@@ -1551,28 +1661,27 @@
             const fileName = phaseKeyOrAll === 'all'
                 ? `${state.examName}_Seating_Arrangement_All.pdf`
                 : `${state.examName}_Seating_Arrangement_${phaseKeyOrAll.split('|')[0]}.pdf`;
-            
+
             doc.save(fileName);
         }
-        
+
         async function generateDutySheetPDF(specificPhaseKey = null) {
             const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
             const finalPhaseKeys = specificPhaseKey ? [specificPhaseKey] : sortedPhaseKeys;
-            
+
             if (finalPhaseKeys.length === 0 || Object.keys(state.dutyAssignments).length === 0) {
                 notify('No duties assigned yet.', 'error');
                 return;
             }
 
             notify('Generating Duty Sheet PDF...', 'success');
-            const bannerDataURL = await imageToBase64('site_banner.png');
-            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
-        
+            const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
+
             const dataByRoomDatePhase = {};
             const allDates = new Set();
             const allRoomsMeta = new Map();
             const phasesByDate = {};
-        
+
             for (const phaseKey of finalPhaseKeys) {
                 const [date, phaseId] = phaseKey.split('|');
                 const phaseInfo = state.schedule[date]?.find(p => p.id === phaseId);
@@ -1594,7 +1703,7 @@
                     }
                 }
             }
-        
+
             const sortedDates = [...allDates].sort();
             const sortedRooms = [...allRoomsMeta.values()].sort((a,b) => (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true }));
             for (const date in phasesByDate) {
@@ -1605,27 +1714,27 @@
                 notify('No duties assigned to any rooms with blocks.', 'error');
                 return;
             }
-        
+
             const { jsPDF } = window.jspdf;
             const orientation = sortedRooms.length > 12 ? 'portrait' : 'landscape';
             const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
             const DATES_PER_PAGE = specificPhaseKey ? sortedDates.length : (orientation === 'landscape' ? 4 : 2);
-        
+
             const dateChunks = [];
             for (let i = 0; i < sortedDates.length; i += DATES_PER_PAGE) {
                 dateChunks.push(sortedDates.slice(i, i + DATES_PER_PAGE));
             }
-        
-            dateChunks.forEach((dateChunk, pageIndex) => {
+
+            for (const [pageIndex, dateChunk] of dateChunks.entries()) {
                 if (pageIndex > 0) {
                     doc.addPage();
                 }
-        
+
                 addDutySheetPdfHeader(doc, bannerDataURL, state);
-        
+
                 const headRow1 = [{ content: 'Block / Room No.', rowSpan: 2, styles: { valign: 'middle' } }];
                 const headRow2 = [];
-        
+
                 dateChunk.forEach(date => {
                     const phases = phasesByDate[date] || [];
                     const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
@@ -1639,10 +1748,10 @@
                         headRow2.push('');
                     }
                 });
-        
+
                 const head = [headRow1, headRow2];
                 const body = [];
-        
+
                 sortedRooms.forEach(({ roomName, blockNo }) => {
                     const row = [{ content: `${blockNo}\n${roomName}`, styles: { fontStyle: 'bold', valign: 'middle', halign: 'center'} }];
                     dateChunk.forEach(date => {
@@ -1659,35 +1768,36 @@
                     });
                     body.push(row);
                 });
-        
+
                 doc.autoTable({
                     head: head,
                     body: body,
                     startY: 35,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [0,0,0], textColor: [0, 0, 0] },
-                    headStyles: { 
-                        fontStyle: 'bold', 
-                        halign: 'center', 
-                        valign: 'middle', 
-                        fillColor: [255, 255, 255], 
-                        textColor: [0, 0, 0], 
-                        fontSize: 7, 
-                        lineColor: [0, 0, 0]
+                    styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [0,0,0], textColor: [0, 0, 0], lineWidth: 0.1 },
+                    headStyles: {
+                        fontStyle: 'bold',
+                        halign: 'center',
+                        valign: 'middle',
+                        fillColor: [255, 255, 255],
+                        textColor: [0, 0, 0],
+                        fontSize: 7,
+                        lineColor: [0, 0, 0],
+                        lineWidth: 0.2
                     },
-                    bodyStyles: { lineColor: [0, 0, 0], minCellHeight: 13, textColor: [0, 0, 0] },
+                    bodyStyles: { lineColor: [0, 0, 0], minCellHeight: 13, textColor: [0, 0, 0], lineWidth: 0.1 },
                 });
-            });
-            
-            const fileName = specificPhaseKey 
-                ? `${state.examName}_Duty_Sheet_${specificPhaseKey.replace('|', '_')}.pdf` 
+            }
+
+            const fileName = specificPhaseKey
+                ? `${state.examName}_Duty_Sheet_${specificPhaseKey.replace('|', '_')}.pdf`
                 : `${state.examName}_Duty_Sheet_Paginated.pdf`;
             doc.save(fileName);
         }
 
         async function generateAnswerSheetPDF() {
             notify('Generating Answer Sheet PDF...', 'success');
-            const bannerDataURL = await imageToBase64('site_banner.png');
+            const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
 
             const allExams = [];
             const currentlyFilteredSubjects = getFilteredSubjects();
@@ -1741,7 +1851,7 @@
 
                 addPdfHeader(doc, bannerDataURL, state, 'Answer Sheet Issue Sheet');
                 let startY = 35;
-                
+
                 isFirstBranch = false;
                 const sortedSemesters = Object.keys(examsByBranch[branchName]).sort();
 
@@ -1749,7 +1859,7 @@
                     const groupName = `${branchName} ${semesterName}`;
                     const examsInGroup = examsByBranch[branchName][semesterName];
                     examsInGroup.sort((a, b) => new Date(a.date) - new Date(b.date));
-                    
+
                     const tableData = examsInGroup.map(exam => [
                         '', // Blank Date & Time
                         exam.code,
@@ -1758,7 +1868,7 @@
                         '', // Blank Faculty Name
                         ''  // Blank Signature
                     ]);
-                    
+
                     // Check if there is enough space, otherwise add a new page
                     const tableHeight = (tableData.length + 1) * 8 + 10; // Estimated height
                     if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
@@ -1792,15 +1902,15 @@
                             cellPadding: 2
                         },
                         columnStyles: {
-                            0: { cellWidth: 25 }, 
-                            1: { cellWidth: 25 }, 
-                            2: { cellWidth: 'auto' }, 
-                            3: { cellWidth: 20 }, 
-                            4: { cellWidth: 30 }, 
+                            0: { cellWidth: 25 },
+                            1: { cellWidth: 25 },
+                            2: { cellWidth: 'auto' },
+                            3: { cellWidth: 20 },
+                            4: { cellWidth: 30 },
                             5: { cellWidth: 25 }
                         }
                     });
-                    
+
                     startY = doc.autoTable.previous.finalY + 10;
                 }
             }
@@ -1812,14 +1922,13 @@
         async function generateLoadMatrixPDF() {
             const dutyCounts = getFacultyDutyCount();
             const assignedFaculty = Object.entries(dutyCounts).filter(([, count]) => count > 0).sort(([, b], [, a]) => a - b);
-            
+
             if (assignedFaculty.length === 0) {
                 notify("No duties have been assigned to any faculty yet.", "warning");
                 return;
             }
 
-            const bannerDataURL = await imageToBase64('site_banner.png');
-            if (!bannerDataURL) { console.warn("Banner image could not be loaded for PDF."); }
+            const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -1835,10 +1944,10 @@
                 body: tableData,
                 startY: 48,
                 theme: 'grid',
-                headStyles: { 
-                    fillColor: [255, 255, 255], 
-                    textColor: [0, 0, 0], 
-                    fontStyle: 'bold', 
+                headStyles: {
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
                     lineColor: [0,0,0]
                 },
                 styles: { lineColor: [0,0,0] },
@@ -1855,7 +1964,7 @@
             const allRoomsMeta = new Map();
             const phasesByDate = {};
             const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
-        
+
             for (const phaseKey of sortedPhaseKeys) {
                 const [date, phaseId] = phaseKey.split('|');
                 const phaseInfo = state.schedule[date]?.find(p => p.id === phaseId);
@@ -1937,7 +2046,7 @@
                 tableHTML += `</tr>`;
             });
             tableHTML += `</tbody></table>`;
-            
+
             if (sortedRooms.length === 0) {
                 return '<p class="text-center py-8">No duties assigned yet.</p>';
             }
@@ -1961,11 +2070,11 @@
             };
             render();
         }
-        
+
         function showDutyMatrixModal(facultyName) {
             const duties = [];
             const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
-            
+
             sortedPhaseKeys.forEach(phaseKey => {
                 const [date, phaseId] = phaseKey.split('|');
                 const phase = state.schedule[date]?.find(p => p.id === phaseId);
@@ -2007,11 +2116,11 @@
             };
             render();
         }
-        
+
         function showLoadMatrixModal() {
             const dutyCounts = getFacultyDutyCount();
             const assignedFaculty = Object.entries(dutyCounts).filter(([, count]) => count > 0).sort(([, b], [, a]) => a - b);
-            
+
             let content;
             if (assignedFaculty.length > 0) {
                  content = `
@@ -2085,7 +2194,7 @@
                 content
             };
             render();
-            
+
             document.querySelectorAll('.seating-pdf-option-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const phaseKey = btn.dataset.phaseKey;
@@ -2131,7 +2240,7 @@
             const schedulableSubjects = getFilteredSubjects();
             const isMultiType = state.examDetails.type.length > 1;
             const inputType = isMultiType ? 'radio' : 'checkbox';
-            
+
              const content = `
                 <div class="p-4 border-b">
                     <input type="text" id="modal-subject-search" placeholder="Search available subjects..." class="w-full p-2 border rounded-md">
@@ -2155,7 +2264,7 @@
                         <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Assign Selected</button>
                     </div>
                 </form>`;
-            
+
             state.modal = {
                 visible: true,
                 title: `Assign Subjects`,
@@ -2202,7 +2311,7 @@
             if(!state.modal.visible) { container.innerHTML = ''; return; }
             const maxWidth = state.modal.title.includes('Timetable') ? 'max-w-5xl' : (state.modal.title.includes('Duty Sheet') ? 'max-w-7xl' : 'max-w-2xl');
             container.innerHTML = `<div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 z-[99] flex justify-center items-center p-4 transition-opacity"><div class="bg-white rounded-lg shadow-xl p-0 w-full ${maxWidth} max-h-[90vh] flex flex-col scale-95 animate-modal-in"><div class="flex justify-between items-center p-5 border-b"><h3 class="text-xl font-bold text-gray-800">${state.modal.title}</h3><button id="modal-close-btn" class="p-2 rounded-full hover:bg-gray-200">${ICONS.XClose}</button></div><div class="overflow-auto">${state.modal.content}</div></div></div>`;
-            
+
             // Add event listener for modal search after it's rendered
             if(state.modal.title.includes('Assign Faculty')) {
                  const searchInput = $('#modal-faculty-search');
@@ -2229,17 +2338,15 @@
             }
         }
 
-        function handleSubjectChange(element) {
-            const subjectId = element.value;
+        function handleSubjectChange(subjectId, form) {
             const subject = state.subjectsMasterList.find(s => s.id == subjectId);
-            const form = element.closest('form');
-            if (!form) return;
             const specContainer = form.querySelector('.specialization-container');
-            
+
             if (subject && subject.Specialization && subject.Specialization.length > 0) {
                 specContainer.innerHTML = `
                     <label class="text-xs font-medium text-gray-600">Specialization</label>
                     <select name="specialization" class="block w-full p-2 border rounded-md text-sm mt-1">
+                        <option value="ALL COURSES">ALL COURSES (Remedial/Combined)</option>
                         ${subject.Specialization.map(spec => `<option value="${spec}">${spec}</option>`).join('')}
                     </select>
                 `;
@@ -2267,17 +2374,18 @@
                 notify('Could not save data to file.', 'error');
             }
         }
-        
+
         function showEditBlockModal(phaseKey, blockId) {
             const block = state.allotment[phaseKey]?.find(b => b.id === blockId);
             if (!block) return;
             const [date, phaseId] = phaseKey.split('|');
             const phase = state.schedule[date]?.find(p => p.id === phaseId);
 
-            const subjectIdsInPhase = [...new Set(phase.subjects.map(item => item.subjectId))];
-            const subjectsInPhase = subjectIdsInPhase.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
-            
-            const subjectOfBlock = subjectsInPhase.find(s => s.id == block.subjectId);
+            // Find the specific instance this block was created from.
+            // This is tricky if instanceIds aren't stored. A block is defined by its subjectId and isDetained status.
+            const scheduledItemsInPhase = phase.subjects;
+
+            const subjectOfBlock = state.subjectsMasterList.find(s => s.id == block.subjectId);
 
             let specializationHtml = '';
             if (subjectOfBlock && subjectOfBlock.Specialization && subjectOfBlock.Specialization.length > 0) {
@@ -2285,6 +2393,7 @@
                     <div class="specialization-container md:col-span-6">
                         <label class="text-sm font-medium text-gray-700">Specialization</label>
                         <select name="specialization" class="block w-full p-2 border rounded-md text-sm mt-1">
+                             <option value="ALL COURSES" ${block.specialization === 'ALL COURSES' ? 'selected' : ''}>ALL COURSES (Remedial/Combined)</option>
                             ${subjectOfBlock.Specialization.map(spec => `<option value="${spec}" ${block.specialization === spec ? 'selected' : ''}>${spec}</option>`).join('')}
                         </select>
                     </div>`;
@@ -2294,12 +2403,10 @@
             const content = `
                 <form id="edit-block-form" data-phase-key="${phaseKey}" data-block-id="${blockId}" class="p-6 space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <div class="md:col-span-12">
-                             <label class="text-sm font-medium text-gray-700">Subject</label>
-                            <select name="subjectId" data-action="update-specializations" class="block w-full p-2 border rounded-md text-sm mt-1">
-                                ${subjectsInPhase.map(s => `<option value="${s.id}" ${s.id == block.subjectId ? 'selected' : ''}>${s.SubjectName} (${s.Branch} - ${s.Semester})</option>`).join('')}
-                            </select>
-                        </div>
+                         <div class="md:col-span-12 p-3 bg-gray-100 rounded-md">
+                             <label class="text-xs font-medium text-gray-600">Subject</label>
+                             <p class="font-semibold text-gray-800">${subjectOfBlock.SubjectName}${block.isDetained ? ' (Detained)' : ''}</p>
+                         </div>
                         ${specializationHtml}
                         <div class="md:col-span-6">
                             <label class="text-sm font-medium text-gray-700">Block No.</label>
@@ -2332,9 +2439,113 @@
                 content: content
             };
             render();
-            // Manually trigger change to render specializations if needed
-            handleSubjectChange($('#edit-block-form [data-action="update-specializations"]'));
         }
+
+        // --- SCHEDULING LOGIC (New & Refactored) ---
+
+        function addSubjectToPhase(subjectId, date, phaseId) {
+            const subject = state.subjectsMasterList.find(s => s.id == subjectId);
+            if (!subject) return;
+
+            const semNumber = parseInt((subject.Semester || 'Sem 0').replace('Sem ', ''));
+            const branch = subject.Branch?.toUpperCase();
+            const applicableBranches = ['BTECH', 'DIPLOMA', 'BCA'];
+            const isDetainEligible = applicableBranches.includes(branch) && semNumber >= 5;
+
+            if (isDetainEligible) {
+                showSelectStudentTypeModal(subjectId, date, phaseId);
+            } else {
+                continueScheduling(subjectId, date, phaseId, ['regular']);
+            }
+        }
+
+        function showSelectStudentTypeModal(subjectId, date, phaseId) {
+            const subject = state.subjectsMasterList.find(s => s.id == subjectId);
+            const content = `
+                <form id="select-student-type-form" data-subject-id="${subjectId}" data-date="${date}" data-phase-id="${phaseId}" class="p-6 space-y-4">
+                    <p>Select student category for <strong>${subject.SubjectName}</strong>.</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" name="studentType" value="regular" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" checked>
+                            <span class="ml-3 text-sm font-medium text-gray-800">Regular Students</span>
+                        </label>
+                        <label class="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" name="studentType" value="detained" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                            <span class="ml-3 text-sm font-medium text-gray-800">Detained Students</span>
+                        </label>
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Continue</button>
+                    </div>
+                </form>
+            `;
+            state.modal = { visible: true, title: 'Select Student Category', content };
+            render();
+        }
+
+        function continueScheduling(subjectId, date, phaseId, studentTypesArray) {
+            const examTypes = state.examDetails.type;
+            const subjectIdAsNumber = parseFloat(subjectId);
+
+            if (examTypes.length === 1) {
+                const phase = state.schedule[date].find(p => p.id === phaseId);
+                studentTypesArray.forEach(studentType => {
+                    phase.subjects.push({
+                        instanceId: `subinst_${Date.now()}_${Math.random()}`,
+                        subjectId: subjectIdAsNumber,
+                        examType: examTypes[0],
+                        studentType: studentType
+                    });
+                });
+                render();
+                saveState();
+            } else {
+                showSelectExamTypeModal(subjectIdAsNumber, date, phaseId, studentTypesArray);
+            }
+        }
+
+        function showSelectExamTypeModal(subjectId, date, phaseId, studentTypesArray) {
+            const subject = state.subjectsMasterList.find(s => s.id === subjectId);
+            const phase = state.schedule[date].find(p => p.id === phaseId);
+
+            const existingTypesForSubject = phase.subjects
+                .filter(item => item.subjectId === subjectId && item.studentType === studentTypesArray[0])
+                .map(item => item.examType);
+
+            const availableTypes = state.examDetails.type.filter(t => !existingTypesForSubject.includes(t));
+
+            if (availableTypes.length === 0) {
+                notify(`${subject.SubjectName} has already been scheduled for all selected exam types in this phase.`, 'warning');
+                return;
+            }
+
+            const content = `
+                <form id="select-exam-type-form" data-subject-id="${subjectId}" data-date="${date}" data-phase-id="${phaseId}" data-student-types='${JSON.stringify(studentTypesArray)}' class="p-6 space-y-4">
+                    <p>Select exam type(s) for <strong>${subject.SubjectName}</strong>.</p>
+                    <div class="space-y-2">
+                        ${availableTypes.map(type => `
+                            <label class="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" name="examType" value="${type}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <span class="ml-3 text-sm font-medium text-gray-800">${type}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Assign Subject(s)</button>
+                    </div>
+                </form>
+            `;
+
+            state.modal = {
+                visible: true,
+                title: 'Select Exam Type(s)',
+                content
+            };
+            render();
+        }
+
 
         // --- EVENT HANDLERS & INITIALIZATION ---
         function handleGlobalClick(e) {
@@ -2400,21 +2611,36 @@
             if(assignSubjectBtn) showAssignSubjectModal(assignSubjectBtn.dataset.date, assignSubjectBtn.dataset.phaseId);
 
             if (e.target.closest('#modal-close-btn') || e.target.id === 'modal-overlay' || e.target.closest('#modal-cancel-btn')) { state.modal.visible = false; render(); }
-            
-            if (e.target.closest('#cal-prev')) { 
+
+            if (e.target.closest('#cal-prev')) {
                 const newDate = new Date(state.scheduler.calendarDate);
                 newDate.setMonth(newDate.getMonth() - 1);
                 state.scheduler.calendarDate = newDate;
-                render(); 
+                render();
                 saveState();
             }
-            if (e.target.closest('#cal-next')) { 
+            if (e.target.closest('#cal-next')) {
                 const newDate = new Date(state.scheduler.calendarDate);
                 newDate.setMonth(newDate.getMonth() + 1);
                 state.scheduler.calendarDate = newDate;
-                render(); 
+                render();
                 saveState();
             }
+
+            const detainBtn = e.target.closest('.detain-status-btn');
+            if (detainBtn) {
+                const form = detainBtn.closest('form');
+                const isDetained = detainBtn.dataset.detainStatus;
+                form.querySelector('[name="isDetained"]').value = isDetained;
+
+                form.querySelectorAll('.detain-status-btn').forEach(btn => {
+                    btn.classList.remove('btn-toggle-active');
+                    btn.classList.add('hover:bg-gray-100');
+                });
+                detainBtn.classList.add('btn-toggle-active');
+                detainBtn.classList.remove('hover:bg-gray-100');
+            }
+
 
             const calDay = e.target.closest('.calendar-day'); if (calDay) addExamDate(calDay.dataset.date);
             const removeDateBtn = e.target.closest('.remove-date-btn'); if(removeDateBtn) {
@@ -2486,7 +2712,7 @@
 
                 const targetSubjectIds = [...new Set(targetPhase.subjects.map(item => item.subjectId))];
                 const targetSubjects = targetSubjectIds.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
-                
+
                 const newBlocks = [];
                 let unmappedCount = 0;
                 sourceBlocks.forEach(sourceBlock => {
@@ -2526,7 +2752,7 @@
             if (e.target.closest('#download-seating-pdf')) {
                 showSeatingPdfOptionsModal();
             }
-            
+
             if (e.target.closest('#preview-duty-pdf')) showDutySheetModal();
             if (e.target.closest('#download-duty-pdf-final')) generateDutySheetPDF();
             const downloadPhaseBtn = e.target.closest('.download-phase-duty-btn');
@@ -2536,7 +2762,7 @@
             if (e.target.closest('#view-load-matrix-btn')) showLoadMatrixModal();
             if (e.target.closest('#download-load-matrix-pdf')) generateLoadMatrixPDF();
 
-            
+
             const removeSubjectBtn = e.target.closest('.remove-subject-from-phase-btn');
             if(removeSubjectBtn) {
                 const { date, phaseId, instanceId } = removeSubjectBtn.dataset;
@@ -2558,106 +2784,58 @@
             }
         }
         function handleGlobalChange(e) {
-            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') { 
-                state.examDetails[e.target.id.split('-')[1]] = e.target.value; 
-                updateExamName(); 
-                render(); 
-                saveState(); 
+            if (e.target.id === 'exam-session' || e.target.id === 'exam-year') {
+                state.examDetails[e.target.id.split('-')[1]] = e.target.value;
+                updateExamName();
+                render();
+                saveState();
             }
             if (e.target.matches('#subject-file-upload')) { handleFileUpload(e.target.files[0], 'subject'); e.target.value = ''; }
             if (e.target.matches('#room-file-upload')) { handleFileUpload(e.target.files[0], 'room'); e.target.value = ''; }
             if (e.target.matches('#faculty-file-upload')) { handleFileUpload(e.target.files[0], 'faculty'); e.target.value = ''; }
             if (e.target.dataset.action === 'update-specializations') {
-                handleSubjectChange(e.target);
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                const subjectId = selectedOption.dataset.subjectId;
+                handleSubjectChange(subjectId, e.target.closest('form'));
             }
-        }
-        
-        function addSubjectToPhase(subjectId, date, phaseId) {
-            const examTypes = state.examDetails.type;
-            const subjectIdAsNumber = parseFloat(subjectId);
-
-            if (examTypes.length === 1) {
-                // If only one exam type, add directly without modal
-                const phase = state.schedule[date].find(p => p.id === phaseId);
-                const alreadyExists = phase.subjects.some(item => item.subjectId === subjectIdAsNumber && item.examType === examTypes[0]);
-                if (alreadyExists) {
-                    notify('This subject is already scheduled for this exam type in this phase.', 'warning');
-                    return;
-                }
-                phase.subjects.push({
-                    instanceId: `subinst_${Date.now()}_${Math.random()}`,
-                    subjectId: subjectIdAsNumber,
-                    examType: examTypes[0]
-                });
-                render();
-                saveState();
-            } else {
-                // If multiple exam types, show modal
-                showSelectExamTypeModal(subjectIdAsNumber, date, phaseId);
-            }
-        }
-
-        function showSelectExamTypeModal(subjectId, date, phaseId) {
-            const subject = state.subjectsMasterList.find(s => s.id === subjectId);
-            const phase = state.schedule[date].find(p => p.id === phaseId);
-            
-            // Find which exam types for THIS subject are already in THIS phase
-            const existingTypesForSubject = phase.subjects
-                .filter(item => item.subjectId === subjectId)
-                .map(item => item.examType);
-                
-            // Find available types by filtering out existing ones
-            const availableTypes = state.examDetails.type.filter(t => !existingTypesForSubject.includes(t));
-
-            if (availableTypes.length === 0) {
-                notify(`${subject.SubjectName} has already been scheduled for all selected exam types in this phase.`, 'warning');
-                return;
-            }
-
-            const content = `
-                <form id="select-exam-type-form" data-subject-id="${subjectId}" data-date="${date}" data-phase-id="${phaseId}" class="p-6 space-y-4">
-                    <p>Select exam type(s) for <strong>${subject.SubjectName}</strong>.</p>
-                    <div class="space-y-2">
-                        ${availableTypes.map(type => `
-                            <label class="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer">
-                                <input type="checkbox" name="examType" value="${type}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
-                                <span class="ml-3 text-sm font-medium text-gray-800">${type}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                    <div class="pt-4 flex justify-end gap-3">
-                        <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">Cancel</button>
-                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Assign Subject(s)</button>
-                    </div>
-                </form>
-            `;
-            
-            state.modal = {
-                visible: true,
-                title: 'Select Exam Type(s)',
-                content
-            };
-            render();
         }
 
         function handleGlobalSubmit(e) {
             e.preventDefault();
-            if (e.target.id === 'select-exam-type-form') {
+            if (e.target.id === 'select-student-type-form') {
                 const form = e.target;
                 const { subjectId, date, phaseId } = form.dataset;
                 const formData = new FormData(form);
-                const selectedTypes = formData.getAll('examType');
+                const selectedStudentTypes = formData.getAll('studentType');
 
-                if (selectedTypes.length > 0) {
+                if (selectedStudentTypes.length > 0) {
+                    state.modal.visible = false;
+                    render(); // Close modal immediately
+                    continueScheduling(subjectId, date, phaseId, selectedStudentTypes);
+                } else {
+                    notify('Please select at least one student category.', 'error');
+                }
+            }
+            if (e.target.id === 'select-exam-type-form') {
+                const form = e.target;
+                const { subjectId, date, phaseId } = form.dataset;
+                const studentTypes = JSON.parse(form.dataset.studentTypes);
+                const formData = new FormData(form);
+                const selectedExamTypes = formData.getAll('examType');
+
+                if (selectedExamTypes.length > 0) {
                     const phase = state.schedule[date].find(p => p.id === phaseId);
-                    selectedTypes.forEach(type => {
-                        phase.subjects.push({
-                            instanceId: `subinst_${Date.now()}_${Math.random()}`,
-                            subjectId: parseFloat(subjectId),
-                            examType: type
+                    studentTypes.forEach(studentType => {
+                        selectedExamTypes.forEach(examType => {
+                             phase.subjects.push({
+                                instanceId: `subinst_${Date.now()}_${Math.random()}`,
+                                subjectId: parseFloat(subjectId),
+                                examType: examType,
+                                studentType: studentType
+                            });
                         });
                     });
-                    
+
                     state.modal.visible = false;
                     render();
                     saveState();
@@ -2675,7 +2853,6 @@
                  if (blockIndex > -1) {
                     state.allotment[phaseKey][blockIndex] = {
                         ...state.allotment[phaseKey][blockIndex],
-                        subjectId: formData.get('subjectId'),
                         specialization: formData.get('specialization') || null,
                         roomName: formData.get('roomName'),
                         seatRange: formData.get('seatRange'),
@@ -2708,7 +2885,7 @@
                 const { phaseKey, room } = e.target.dataset;
                 const formData = new FormData(e.target);
                 const selectedFaculty = formData.getAll('faculty');
-                
+
                 if (!state.dutyAssignments[phaseKey]) state.dutyAssignments[phaseKey] = {};
                 if (!state.dutyAssignments[phaseKey][room]) state.dutyAssignments[phaseKey][room] = [];
 
@@ -2717,7 +2894,7 @@
                         state.dutyAssignments[phaseKey][room].push(name);
                     }
                 });
-                
+
                 state.modal.visible = false;
                 render();
                 saveState();
@@ -2726,9 +2903,9 @@
                 const { date, phaseId } = e.target.dataset;
                 const formData = new FormData(e.target);
                 const selectedSubjects = formData.getAll('subject');
-                
+
                 state.modal.visible = false;
-                render(); 
+                render();
 
                 selectedSubjects.forEach(subjectId => {
                     addSubjectToPhase(subjectId, date, phaseId);
@@ -2744,12 +2921,12 @@
                 updateExamName();
             }
             render();
-            
+
             const appContainer = $('#app-container');
             appContainer.addEventListener('click', handleGlobalClick);
             appContainer.addEventListener('change', handleGlobalChange);
             appContainer.addEventListener('submit', handleGlobalSubmit);
-            
+
             const loadInput = document.getElementById('load-from-file-input');
             loadInput.addEventListener('change', (event) => {
                 const file = event.target.files[0];
@@ -2780,12 +2957,12 @@
                         console.error('Failed to load state from file:', error);
                         notify('Could not load data. The file may be corrupt or invalid.', 'error');
                     } finally {
-                        event.target.value = ''; 
+                        event.target.value = '';
                     }
                 };
                 reader.readAsText(file);
             });
-            
+
             appContainer.addEventListener('input', e => {
                 if (e.target.id === 'exam-name') {
                     state.examName = e.target.value;
@@ -2802,42 +2979,42 @@
             });
 
             // Drag and Drop listeners
-            appContainer.addEventListener('dragstart', e => { 
-                const draggable = e.target.closest('.draggable');
-                if (draggable) { 
-                    state.draggedItemId = draggable.dataset.id;
-                    state.draggedItemType = draggable.dataset.type;
-                    e.target.style.opacity = '0.5'; 
-                } 
-            });
-            appContainer.addEventListener('dragend', e => { 
+            appContainer.addEventListener('dragstart', e => {
                 const draggable = e.target.closest('.draggable');
                 if (draggable) {
-                    e.target.style.opacity = '1'; 
+                    state.draggedItemId = draggable.dataset.id;
+                    state.draggedItemType = draggable.dataset.type;
+                    e.target.style.opacity = '0.5';
                 }
-                state.draggedItemId = null; 
+            });
+            appContainer.addEventListener('dragend', e => {
+                const draggable = e.target.closest('.draggable');
+                if (draggable) {
+                    e.target.style.opacity = '1';
+                }
+                state.draggedItemId = null;
                 state.draggedItemType = null;
             });
-            appContainer.addEventListener('dragover', e => { 
+            appContainer.addEventListener('dragover', e => {
                 const dropZone = e.target.closest('.drop-zone');
-                if (dropZone && dropZone.dataset.type === state.draggedItemType) { 
-                    e.preventDefault(); 
-                    dropZone.classList.add('drop-zone-active'); 
-                } 
+                if (dropZone && dropZone.dataset.type === state.draggedItemType) {
+                    e.preventDefault();
+                    dropZone.classList.add('drop-zone-active');
+                }
             });
-            appContainer.addEventListener('dragleave', e => { 
+            appContainer.addEventListener('dragleave', e => {
                  const dropZone = e.target.closest('.drop-zone');
                 if (dropZone) {
-                    dropZone.classList.remove('drop-zone-active'); 
+                    dropZone.classList.remove('drop-zone-active');
                 }
             });
             appContainer.addEventListener('drop', e => {
                 e.preventDefault();
                 const dropZone = e.target.closest('.drop-zone');
                  if (!dropZone || !state.draggedItemId || dropZone.dataset.type !== state.draggedItemType) return;
-                
+
                 dropZone.classList.remove('drop-zone-active');
-                
+
                 dropZone.classList.add('drop-zone-success');
                 setTimeout(() => {
                     dropZone.classList.remove('drop-zone-success');
@@ -2871,4 +3048,3 @@
     </script>
 </body>
 </html>
-

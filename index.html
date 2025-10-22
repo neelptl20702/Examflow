@@ -139,7 +139,7 @@
         const UNIVERSITY_NAME = 'ITM SLS Baroda University';
         const SCHOOL_NAME = 'School of Computer Science, Engineering and Technology';
         const EXAM_TYPES = ["CET 1", "CET 2", "MST", "REMEDIAL"];
-        const BRANCHES = ["DIPLOMA", "BCA", "MCA", "BTECH"];
+        const BRANCHES = ["DIPLOMA", "BCA", "MCA", "BTECH", "MTECH"]; // Added MTECH
         const SPECIALIZATIONS = ["CSE", "IT", "AI", "CS", "DS", "CSA", "CSN"];
         const SEMESTERS = Array.from({ length: 8 }, (_, i) => `Sem ${i + 1}`);
         const STEPS = [
@@ -152,6 +152,7 @@
             "DIPLOMA": "bg-green-100 text-green-800 border-green-300",
             "BCA": "bg-yellow-100 text-yellow-800 border-yellow-300",
             "MCA": "bg-purple-100 text-purple-800 border-purple-300",
+            "MTECH": "bg-teal-100 text-teal-800 border-teal-300", // Added MTECH color
             "DEFAULT": "bg-gray-100 text-gray-800 border-gray-300",
         };
 
@@ -2449,7 +2450,7 @@
 
             const semNumber = parseInt((subject.Semester || 'Sem 0').replace('Sem ', ''));
             const branch = subject.Branch?.toUpperCase();
-            const applicableBranches = ['BTECH', 'DIPLOMA', 'BCA'];
+            const applicableBranches = ['BTECH', 'DIPLOMA', 'BCA', 'MTECH']; // Added MTECH here too
             const isDetainEligible = applicableBranches.includes(branch) && semNumber >= 5;
 
             if (isDetainEligible) {

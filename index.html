@@ -1414,16 +1414,16 @@
             notify('Generating PDF, please wait...', 'success');
             const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
 
+            // 1. SPLIT items into Regular and Detained lists first
             const regularScheduledItems = [];
             const detainedScheduledItems = [];
-
             const currentlyFilteredSubjects = getFilteredSubjects();
             const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
 
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
                     for (const scheduledItem of phase.subjects) {
-                        if (currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                        if (currentlyFilteredSubjects.has(scheduledItem.subjectId)) {
                              if (scheduledItem.studentType === 'detained') {
                                 detainedScheduledItems.push({ ...scheduledItem, date, phase });
                             } else {
@@ -1454,13 +1454,17 @@
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            let isFirstPage = true;
+            let isFirstPage = true; // Used to prevent adding a new page for the very first section
 
+            // --- This function now processes EITHER the regular OR detained list ---
             const processItemsToPdf = (items, title) => {
-                if(items.length === 0) return doc.autoTable.previous.finalY || 55;
+                if(items.length === 0) return; // If no items (e.g., no detained), just skip
 
-                if (!isFirstPage) doc.addPage();
-                isFirstPage = false;
+                // 2. Add a new page for any section AFTER the first one
+                if (!isFirstPage) {
+                    doc.addPage();
+                }
+                isFirstPage = false; // All subsequent sections will get a new page
 
                 addPdfHeader(doc, bannerDataURL, state);
 
@@ -1468,93 +1472,113 @@
                 doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER`, doc.internal.pageSize.getWidth() / 2, 38, { align: 'center' });
                 doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0,0,0); doc.text(title, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
 
-                let startY = 55;
-
-                // Add a subtitle based on the filters from Step 1
-                const { branches, specializations, semesters } = state.examDetails;
-                let filterSubtitle = [branches.join(', '), semesters.join(', '), specializations.join(', ')].filter(Boolean).join(' | ');
+                let startY = 55; // Start position for the first table in THIS section
                 
-                if (filterSubtitle) {
-                    doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.text(filterSubtitle, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
-                    startY = 58; // Adjust startY
-                } else {
-                    startY = 55;
+                const selectedSpecs = state.examDetails.specializations;
+                const allExams = [];
+
+                for (const item of items) {
+                   const subject = state.subjectsMasterList.find(s => s.id === item.subjectId);
+                   if (!subject) continue;
+
+                   const dateObj = new Date(item.date + 'T00:00:00');
+
+                   const examData = {
+                       sortableDate: item.date,
+                       date: dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                       day: dateObj.toLocaleDateString('en-US', { weekday: 'long' }),
+                       startTime: formatTime12Hour(item.phase.startTime),
+                       endTime: formatTime12Hour(item.phase.endTime),
+                       duration: calculateDuration(item.phase.startTime, item.phase.endTime),
+                       code: subject.SubjectCode,
+                       name: subject.SubjectName,
+                       type: item.examType // No (Detained) label needed here
+                   };
+
+                   // Group by Branch, Semester, and Specialization
+                   if (subject.Specialization && subject.Specialization.length > 0) {
+                       const relevantSpecs = selectedSpecs.length > 0 ? subject.Specialization.filter(spec => selectedSpecs.includes(spec)) : subject.Specialization;
+                       if (relevantSpecs.length > 0) {
+                           relevantSpecs.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
+                       } else if (selectedSpecs.length === 0) {
+                            subject.Specialization.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
+                       }
+                   } else {
+                       allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
+                   }
                 }
+                
+                const examsByGroup = allExams.reduce((acc, exam) => { 
+                    if (!acc[exam.group]) { acc[exam.group] = []; } 
+                    acc[exam.group].push(exam); return acc; 
+                }, {});
+                
+                // Loop through each group and print a separate header and table
+                const sortedGroups = Object.keys(examsByGroup).sort();
+                
+                for (const groupName of sortedGroups) {
+                    const groupExams = examsByGroup[groupName].sort((a, b) => new Date(a.sortableDate) - new Date(b.sortableDate));
+                    const tableData = groupExams.map(exam => [
+                        exam.date, exam.day, exam.startTime, exam.endTime, 
+                        exam.duration, exam.code, exam.name, exam.type
+                    ]);
 
-                // Create a single flat array for the table body
-                const tableData = items.map(item => {
-                    const subject = state.subjectsMasterList.find(s => s.id === item.subjectId);
-                    if (!subject) return null; // Should not happen if items are filtered
-                    
-                    const dateObj = new Date(item.date + 'T00:00:00');
-                    const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-                    const startTime = formatTime12Hour(item.phase.startTime);
-                    const endTime = formatTime12Hour(item.phase.endTime);
-                    const duration = calculateDuration(item.phase.startTime, item.phase.endTime);
-
-                    return {
-                        sortableDate: item.date,
-                        data: [
-                            formattedDate,
-                            dayName,
-                            startTime,
-                            endTime,
-                            duration,
-                            subject.SubjectCode,
-                            subject.SubjectName,
-                            item.examType
-                        ]
-                    };
-                }).filter(Boolean) // Remove nulls
-                  .sort((a, b) => new Date(a.sortableDate) - new Date(b.sortableDate)) // Sort by date
-                  .map(item => item.data); // Get just the data array for autoTable
-
-                // Generate the single, new-format table
-                doc.autoTable({
-                    startY: startY,
-                    head: [['Date', 'Day', 'Start Time', 'End Time', 'Duration (min)', 'Code', 'Course Name', 'Type']],
-                    body: tableData,
-                    theme: 'grid', // This ensures all cell borders are drawn
-
-                    // --- STYLES AS DISCUSSED ---
-                    // Global styles for all cells (header and body)
-                    styles: { 
-                        cellPadding: 2, 
-                        fontSize: 8, 
-                        lineColor: [0, 0, 0],   // Pure Black lines
-                        lineWidth: 0.5,         // 0.5pt border thickness
-                        textColor: [0, 0, 0]    // Pure Black text
-                    },
-                    // Header-specific overrides
-                    headStyles: { 
-                        fillColor: [220, 220, 220], // Light gray ("grey type thing")
-                        fontStyle: 'bold',
-                        fontSize: 9,
-                        // It inherits the black line/text color from `styles`
-                    },
-                    // --- END OF STYLES ---
-
-                    columnStyles: {
-                        0: { cellWidth: 20 }, // Date
-                        1: { cellWidth: 22 }, // Day
-                        2: { cellWidth: 20 }, // Start Time
-                        3: { cellWidth: 20 }, // End Time
-                        4: { cellWidth: 20, halign: 'center' }, // Duration
-                        5: { cellWidth: 25 }, // Code
-                        // 6: Course Name (auto)
-                        7: { cellWidth: 15 }  // Type
+                    // Check for page break BEFORE drawing the table
+                    const tableHeight = 15 + 10 + (tableData.length * 8); 
+                    if (startY + tableHeight > doc.internal.pageSize.getHeight() - 20) { 
+                        doc.addPage(); 
+                        addPdfHeader(doc, bannerDataURL, state); // Add header to new page
+                        // Add the main title (e.g., "TIME-TABLE (DETAINED)") to the new page
+                        doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0,0,0); doc.text(`${title} (Contd.)`, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
+                        startY = 55; // Reset startY for new page
                     }
-                });
+
+                    // Print the Group Name (e.g., "BTECH Sem 7 (CSE)")
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(groupName.toUpperCase(), 14, startY);
+
+                    // Print the table for this group
+                    doc.autoTable({
+                        startY: startY + 6, // Start table just below the group name
+                        head: [['Date', 'Day', 'Start Time', 'End Time', 'Duration (min)', 'Code', 'Course Name', 'Type']],
+                        body: tableData,
+                        theme: 'grid',
+                        styles: { 
+                            cellPadding: 2, 
+                            fontSize: 8, 
+                            lineColor: [0, 0, 0], 
+                            lineWidth: 0.5, 
+                            textColor: [0, 0, 0] 
+                        },
+                        headStyles: { 
+                            fillColor: [220, 220, 220], 
+                            fontStyle: 'bold',
+                            fontSize: 9,
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 20 }, // Date
+                            1: { cellWidth: 22 }, // Day
+                            2: { cellWidth: 20 }, // Start Time
+                            3: { cellWidth: 20 }, // End Time
+                            4: { cellWidth: 20, halign: 'center' }, // Duration
+                            5: { cellWidth: 25 }, // Code
+                            // 6: Course Name (auto)
+                            7: { cellWidth: 15 }  // Type
+                        }
+                    });
+                    
+                    startY = doc.autoTable.previous.finalY + 12; // Update Y for the next group
+                }
             };
 
-            // This part remains the same, calling the new function
+            // 3. CALL THE FUNCTION TWICE - once for regular, once for detained
             processItemsToPdf(regularScheduledItems, "TIME-TABLE");
             processItemsToPdf(detainedScheduledItems, "TIME-TABLE (DETAINED STUDENTS)");
 
             doc.save(`${state.examName}_Timetable.pdf`);
         }
-
+        
         async function generateSeatingArrangementPDF(phaseKeyOrAll) {
             const phaseKeysToProcess = phaseKeyOrAll === 'all'
                 ? Object.keys(state.allotment).filter(k => state.allotment[k]?.length > 0).sort()
@@ -3095,4 +3119,5 @@
     </script>
 </body>
 </html>
+
 

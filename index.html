@@ -1418,12 +1418,18 @@
             const regularScheduledItems = [];
             const detainedScheduledItems = [];
             const currentlyFilteredSubjects = getFilteredSubjects();
-            const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id));
+            const currentlyFilteredSubjectIds = new Set(currentlyFilteredSubjects.map(s => s.id)); // This is the Set
 
             for (const date in state.schedule) {
                 for (const phase of state.schedule[date]) {
                     for (const scheduledItem of phase.subjects) {
-                        if (currentlyFilteredSubjects.has(scheduledItem.subjectId)) {
+                        
+                        // --- THIS IS THE FIX ---
+                        // Was: currentlyFilteredSubjects.has(...)
+                        // Is:  currentlyFilteredSubjectIds.has(...)
+                        if (currentlyFilteredSubjectIds.has(scheduledItem.subjectId)) {
+                        // --- END OF FIX ---
+
                              if (scheduledItem.studentType === 'detained') {
                                 detainedScheduledItems.push({ ...scheduledItem, date, phase });
                             } else {
@@ -1578,7 +1584,7 @@
 
             doc.save(`${state.examName}_Timetable.pdf`);
         }
-        
+
         async function generateSeatingArrangementPDF(phaseKeyOrAll) {
             const phaseKeysToProcess = phaseKeyOrAll === 'all'
                 ? Object.keys(state.allotment).filter(k => state.allotment[k]?.length > 0).sort()
@@ -3119,5 +3125,6 @@
     </script>
 </body>
 </html>
+
 
 

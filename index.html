@@ -1965,19 +1965,23 @@
                         head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME', 'Answersheet Count', 'Faculty Name', 'Signature']],
                         body: tableData,
                         theme: 'grid',
-                        headStyles: {
-                            fillColor: [220, 220, 220],
-                            textColor: [0, 0, 0],
-                            fontStyle: 'bold',
-                            lineColor: [0,0,0],
-                            lineWidth: 0.1
-                        },
+                        
+                        // --- APPLIED NEW THEME ---
                         styles: {
                             fontSize: 8,
-                            lineColor: [0, 0, 0],
-                            lineWidth: 0.1,
+                            lineColor: [0, 0, 0],    // Pure Black lines
+                            lineWidth: 0.5,          // 0.5pt border thickness
+                            textColor: [0, 0, 0],    // Pure Black text
                             cellPadding: 2
                         },
+                        headStyles: {
+                            fillColor: [220, 220, 220], // Light gray header
+                            textColor: [0, 0, 0],    // Pure Black header text
+                            fontStyle: 'bold',
+                            // Inherits line color/width from styles
+                        },
+                        // --- END OF THEME ---
+
                         columnStyles: {
                             0: { cellWidth: 25 },
                             1: { cellWidth: 25 },
@@ -1994,7 +1998,6 @@
 
             doc.save(`${state.examName}_AnswerSheet_Issue.pdf`);
         }
-
 
         async function generateLoadMatrixPDF() {
             const dutyCounts = getFacultyDutyCount();
@@ -3125,6 +3128,7 @@
     </script>
 </body>
 </html>
+
 
 
 

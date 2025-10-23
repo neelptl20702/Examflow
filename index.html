@@ -1439,6 +1439,19 @@
                 return;
             }
 
+            // Helper to calculate duration
+            function calculateDuration(startTime, endTime) {
+                if (!startTime || !endTime) return '-';
+                try {
+                    const start = new Date(`1970-01-01T${startTime}`);
+                    const end = new Date(`1970-01-01T${endTime}`);
+                    const diff = (end.getTime() - start.getTime()) / 60000; // difference in minutes
+                    return diff > 0 ? diff.toString() : '-';
+                } catch (e) {
+                    return '-';
+                }
+            }
+
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
             let isFirstPage = true;
@@ -1456,53 +1469,86 @@
                 doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0,0,0); doc.text(title, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
 
                 let startY = 55;
-                const selectedSpecs = state.examDetails.specializations;
-                const allExams = [];
 
-                for (const item of items) {
-                   const subject = state.subjectsMasterList.find(s => s.id === item.subjectId);
-                   if (!subject) continue;
-
-                   const examData = {
-                       date: item.date,
-                       time: `${formatTime12Hour(item.phase.startTime)} to ${formatTime12Hour(item.phase.endTime)}`,
-                       code: subject.SubjectCode,
-                       name: `${subject.SubjectName} (${item.examType})`,
-                   };
-
-                   if (subject.Specialization && subject.Specialization.length > 0) {
-                       const relevantSpecs = selectedSpecs.length > 0 ? subject.Specialization.filter(spec => selectedSpecs.includes(spec)) : subject.Specialization;
-                       if (relevantSpecs.length > 0) {
-                           relevantSpecs.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
-                       } else if (selectedSpecs.length === 0) {
-                            subject.Specialization.forEach(spec => allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester} (${spec})` }));
-                       }
-                   } else {
-                       allExams.push({ ...examData, group: `${subject.Branch} ${subject.Semester}` });
-                   }
+                // Add a subtitle based on the filters from Step 1
+                const { branches, specializations, semesters } = state.examDetails;
+                let filterSubtitle = [branches.join(', '), semesters.join(', '), specializations.join(', ')].filter(Boolean).join(' | ');
+                
+                if (filterSubtitle) {
+                    doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.text(filterSubtitle, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+                    startY = 58; // Adjust startY
+                } else {
+                    startY = 55;
                 }
-                const examsByGroup = allExams.reduce((acc, exam) => { if (!acc[exam.group]) acc[exam.group] = []; acc[exam.group].push(exam); return acc; }, {});
-                for (const group in examsByGroup) { examsByGroup[group].sort((a, b) => new Date(a.date) - new Date(b.date)); }
 
-                const sortedGroups = Object.keys(examsByGroup).sort();
-                for (const groupName of sortedGroups) {
-                    const tableHeight = (examsByGroup[groupName].length + 1) * 8 + 15;
-                    if (startY + tableHeight > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); startY = 20; }
-                    const tableData = examsByGroup[groupName].map(exam => { const formattedDate = new Date(exam.date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }); return [`${formattedDate}\n${exam.time}`, exam.code, exam.name]; });
-                    doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text(groupName, 14, startY);
-                    doc.autoTable({
-                        startY: startY + 6,
-                        head: [['DATE & TIME', 'COURSE CODE', 'COURSE NAME']],
-                        body: tableData,
-                        theme: 'grid',
-                        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineColor: [0, 0, 0], fontStyle: 'bold' },
-                        styles: { cellPadding: 2.5, fontSize: 9, lineColor: [0, 0, 0] },
-                        columnStyles: { 0: { cellWidth: 45 }, 1: { cellWidth: 40 } }
-                    });
-                    startY = doc.autoTable.previous.finalY + 15;
-                }
+                // Create a single flat array for the table body
+                const tableData = items.map(item => {
+                    const subject = state.subjectsMasterList.find(s => s.id === item.subjectId);
+                    if (!subject) return null; // Should not happen if items are filtered
+                    
+                    const dateObj = new Date(item.date + 'T00:00:00');
+                    const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                    const startTime = formatTime12Hour(item.phase.startTime);
+                    const endTime = formatTime12Hour(item.phase.endTime);
+                    const duration = calculateDuration(item.phase.startTime, item.phase.endTime);
+
+                    return {
+                        sortableDate: item.date,
+                        data: [
+                            formattedDate,
+                            dayName,
+                            startTime,
+                            endTime,
+                            duration,
+                            subject.SubjectCode,
+                            subject.SubjectName,
+                            item.examType
+                        ]
+                    };
+                }).filter(Boolean) // Remove nulls
+                  .sort((a, b) => new Date(a.sortableDate) - new Date(b.sortableDate)) // Sort by date
+                  .map(item => item.data); // Get just the data array for autoTable
+
+                // Generate the single, new-format table
+                doc.autoTable({
+                    startY: startY,
+                    head: [['Date', 'Day', 'Start Time', 'End Time', 'Duration (min)', 'Code', 'Course Name', 'Type']],
+                    body: tableData,
+                    theme: 'grid', // This ensures all cell borders are drawn
+
+                    // --- STYLES AS DISCUSSED ---
+                    // Global styles for all cells (header and body)
+                    styles: { 
+                        cellPadding: 2, 
+                        fontSize: 8, 
+                        lineColor: [0, 0, 0],   // Pure Black lines
+                        lineWidth: 0.5,         // 0.5pt border thickness
+                        textColor: [0, 0, 0]    // Pure Black text
+                    },
+                    // Header-specific overrides
+                    headStyles: { 
+                        fillColor: [220, 220, 220], // Light gray ("grey type thing")
+                        fontStyle: 'bold',
+                        fontSize: 9,
+                        // It inherits the black line/text color from `styles`
+                    },
+                    // --- END OF STYLES ---
+
+                    columnStyles: {
+                        0: { cellWidth: 20 }, // Date
+                        1: { cellWidth: 22 }, // Day
+                        2: { cellWidth: 20 }, // Start Time
+                        3: { cellWidth: 20 }, // End Time
+                        4: { cellWidth: 20, halign: 'center' }, // Duration
+                        5: { cellWidth: 25 }, // Code
+                        // 6: Course Name (auto)
+                        7: { cellWidth: 15 }  // Type
+                    }
+                });
             };
 
+            // This part remains the same, calling the new function
             processItemsToPdf(regularScheduledItems, "TIME-TABLE");
             processItemsToPdf(detainedScheduledItems, "TIME-TABLE (DETAINED STUDENTS)");
 
@@ -3049,3 +3095,4 @@
     </script>
 </body>
 </html>
+

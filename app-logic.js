@@ -1451,7 +1451,7 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
                 const subject = state.subjectsMasterList.find(s => s.id === block.subjectId);
                 if (subject) {
                      // Check if this subject is already added for this block (avoid duplicates if same subject runs multiple days)
-                    if (!blocksByBlockNo[block.blockNo].subjects.some(s => s.id === subject.id)) {
+                    if (!blocksByBlockNo[block.blockNo].subjects.some(s => s.id === subject.id && s.isDetained === block.isDetained)) { // --- MODIFIED --- Check detained status too
                         blocksByBlockNo[block.blockNo].subjects.push({
                             id: subject.id,
                             name: subject.SubjectName,
@@ -1471,7 +1471,7 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
     if (sortedBlockNumbers.length === 0) {
         notify('No blocks found for the selected phase times.', 'warning');
         doc.text('No blocks found for the selected phase times.', 14, startY + 10);
-        doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_')}.pdf`);
+        doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_').replace(/[:\s]/g,'')}.pdf`); // --- MODIFIED --- Sanitize filename
         return;
     }
 
@@ -1479,7 +1479,7 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
     for (const blockNo of sortedBlockNumbers) {
         const blockData = blocksByBlockNo[blockNo];
         const subjectLines = blockData.subjects.map(sub => {
-            let specText = sub.specialization ? ` (${sub.specialization})` : '';
+            let specText = sub.specialization && sub.specialization !== 'ALL COURSES' ? ` (${sub.specialization})` : '';
             let detainText = sub.isDetained ? ' (Detained)' : '';
             return `${sub.name} (${sub.branch} ${sub.semester}${specText})${detainText}`;
         });
@@ -1525,7 +1525,7 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
     }
 
 
-    doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_')}.pdf`);
+    doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_').replace(/[:\s]/g,'')}.pdf`); // --- MODIFIED --- Sanitize filename
 }
 
 // --- NEW --- Export Master Arrangement to Excel
@@ -1569,7 +1569,7 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
                  const subject = state.subjectsMasterList.find(s => s.id === block.subjectId);
                  if (subject) {
                      // Check if this subject is already added for this block
-                     if (!blocksByBlockNo[block.blockNo].subjects.some(s => s.id === subject.id)) {
+                     if (!blocksByBlockNo[block.blockNo].subjects.some(s => s.id === subject.id && s.isDetained === block.isDetained)) { // --- MODIFIED --- Check detained status too
                          blocksByBlockNo[block.blockNo].subjects.push({
                              id: subject.id,
                              name: subject.SubjectName,
@@ -1605,7 +1605,7 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
 
         // Add Subject Rows
         blockData.subjects.forEach(sub => {
-            let specText = sub.specialization ? ` (${sub.specialization})` : '';
+            let specText = sub.specialization && sub.specialization !== 'ALL COURSES' ? ` (${sub.specialization})` : '';
             let detainText = sub.isDetained ? ' (Detained)' : '';
             const subjectDetail = `${sub.name} (${sub.branch} ${sub.semester}${specText})${detainText}`;
             sheetData.push([null, subjectDetail]); // Subject detail in the second column
@@ -1631,8 +1631,89 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
 
 
     XLSX.utils.book_append_sheet(wb, ws, 'Master Arrangement');
-    XLSX.writeFile(wb, `${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_')}.xlsx`);
+    XLSX.writeFile(wb, `${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_').replace(/[:\s]/g,'')}.xlsx`); // --- MODIFIED --- Sanitize filename
 
+}
+
+// --- NEW --- Modal for Master Arrangement Download Options
+function showMasterArrangementModal() {
+    // Get unique phase times from schedule
+    const phaseTimes = new Set();
+    Object.values(state.schedule).flat().forEach(phase => {
+        phaseTimes.add(`${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`);
+    });
+    const sortedPhaseTimes = [...phaseTimes].sort();
+
+    if (sortedPhaseTimes.length === 0) {
+        notify('No exam phases scheduled yet. Cannot generate master arrangement.', 'warning');
+        return;
+    }
+
+    const content = `
+        <form id="master-arrangement-options-form" class="p-6 space-y-4">
+            <p class="text-sm text-gray-600">Select the phase time(s) to include in the master arrangement. The report will include all scheduled days for the selected times.</p>
+            <div>
+                <label class="font-semibold text-gray-700 block mb-2">Select Phase Times:</label>
+                <div class="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3 bg-gray-50">
+                    <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
+                        <input type="checkbox" name="phaseTime" value="All Phases" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
+                        <span class="font-bold">All Phases</span>
+                    </label>
+                    ${sortedPhaseTimes.map(time => `
+                        <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" name="phaseTime" value="${time}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
+                            <span>${time}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="pt-6 flex justify-end gap-3 border-t">
+                <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm">Cancel</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="modal-download-master-pdf" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 flex items-center gap-1.5 text-sm">
+                        ${ICONS.Printer} PDF
+                    </button>
+                    <button type="button" id="modal-download-master-excel" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 flex items-center gap-1.5 text-sm">
+                        ${ICONS.Excel} Excel
+                    </button>
+                </div>
+            </div>
+        </form>
+    `;
+
+    state.modal = {
+        visible: true,
+        title: 'Download Master Arrangement',
+        content: content
+    };
+    render();
+
+    // Add logic to handle "All Phases" checkbox
+    const allPhasesCheckbox = document.querySelector('#master-arrangement-options-form input[value="All Phases"]');
+    const individualPhaseCheckboxes = document.querySelectorAll('#master-arrangement-options-form input[name="phaseTime"]:not([value="All Phases"])');
+
+    allPhasesCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        individualPhaseCheckboxes.forEach(cb => {
+            cb.checked = isChecked;
+            cb.disabled = isChecked;
+        });
+    });
+
+    individualPhaseCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (!cb.checked) {
+                allPhasesCheckbox.checked = false;
+                allPhasesCheckbox.disabled = false; // Enable "All Phases" if any individual is unchecked
+            }
+            // Check if all individuals are checked
+            const allChecked = Array.from(individualPhaseCheckboxes).every(iCb => iCb.checked);
+             if(allChecked) {
+                 allPhasesCheckbox.checked = true;
+                 individualPhaseCheckboxes.forEach(iCb => iCb.disabled = true);
+             }
+        });
+    });
 }
 
 
@@ -1887,7 +1968,7 @@ function handleGlobalClick(e) {
     }
      // --- NEW --- Listener for Master Arrangement button
      if (e.target.closest('#download-master-arrangement')) {
-        showMasterArrangementModal();
+        showMasterArrangementModal(); // Call the new modal function
     }
      // --- NEW --- Listener for phase-wise Excel download
      const downloadPhaseExcelBtn = e.target.closest('.download-phase-excel-btn');

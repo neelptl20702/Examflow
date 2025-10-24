@@ -24,7 +24,7 @@ let state = {
     },
     facultySearchTerm: '',
     draggedItemId: null,
-    draggedItemType: null,a
+    draggedItemType: null,
     modal: { visible: false, title: '', content: '' }
 };
 
@@ -2452,4 +2452,5 @@ function init() {
     });
 }
 window.addEventListener('DOMContentLoaded', init);
+
 

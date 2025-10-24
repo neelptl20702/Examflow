@@ -24,7 +24,7 @@ let state = {
     },
     facultySearchTerm: '',
     draggedItemId: null,
-    draggedItemType: null,
+    draggedItemType: null, // Ensured the stray 'a' is removed
     modal: { visible: false, title: '', content: '' }
 };
 
@@ -2452,5 +2452,4 @@ function init() {
     });
 }
 window.addEventListener('DOMContentLoaded', init);
-
 

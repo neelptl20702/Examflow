@@ -191,12 +191,14 @@ function handleAddBlock(form, phaseKey) {
     const instanceId = formData.get('scheduledInstanceId');
 
     let scheduledItem = null;
+    let subjectData = null; // --- MODIFIED --- Store subject data
     if (instanceId) {
         for (const date in state.schedule) {
             for (const phase of state.schedule[date]) {
                 const found = phase.subjects.find(item => item.instanceId === instanceId);
                 if (found) {
                     scheduledItem = found;
+                    subjectData = state.subjectsMasterList.find(s => s.id === found.subjectId); // --- MODIFIED --- Get subject data
                     break;
                 }
             }
@@ -204,20 +206,20 @@ function handleAddBlock(form, phaseKey) {
         }
     }
 
-    if (!scheduledItem) {
+    if (!scheduledItem || !subjectData) { // --- MODIFIED --- Check subjectData too
         notify('Selected subject is invalid. Please re-select.', 'error');
         return;
     }
 
     const block = {
         id: `block_${Date.now()}`,
-        subjectId: scheduledItem.subjectId,
+        subjectId: scheduledItem.subjectId, // --- MODIFIED --- Store subjectId directly
         specialization: formData.get('specialization') || null,
         roomName: formData.get('roomName'),
         seatRange: formData.get('seatRange'),
         blockNo: formData.get('blockNo'),
         studentCount: formData.get('studentCount'),
-        isDetained: scheduledItem.studentType === 'detained'
+        isDetained: scheduledItem.studentType === 'detained' // --- MODIFIED --- Store isDetained status
     };
     if (block.subjectId && block.roomName && block.seatRange && block.blockNo && block.studentCount) {
         if (!state.allotment[phaseKey]) state.allotment[phaseKey] = [];
@@ -829,7 +831,7 @@ async function generateSeatingArrangementPDF(phaseKeyOrAll) {
 
             const body = roomBlocks.map(block => {
                 const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
-                let branchInfo = 'Unknown';
+                let branchInfo = 'Subject Not Assigned'; // --- MODIFIED --- Default text
                 if (subject) {
                     branchInfo = `${subject.Branch} - ${subject.Semester}`;
                     if (block.specialization) {
@@ -899,147 +901,98 @@ async function generateSeatingArrangementPDF(phaseKeyOrAll) {
     doc.save(fileName);
 }
 
-// --- NEW ---
-async function generateEmptySeatingPDF() {
-    if (!state.copiedAllotment || !state.copiedAllotment.blocks || state.copiedAllotment.blocks.length === 0) {
-        notify("Please click 'Copy Seating Plan' on the layout you wish to use as a template first.", 'warning');
+// --- NEW --- Export Filled Seating Plan Phase to Excel
+function exportPhaseSeatingToExcel(phaseKey) {
+    const blocksInPhase = state.allotment[phaseKey];
+    if (!blocksInPhase || blocksInPhase.length === 0) {
+        notify('No blocks created for this session yet.', 'error');
         return;
     }
 
-    notify('Generating Empty Template PDF...', 'success');
-    const blocksToPrint = state.copiedAllotment.blocks;
-    const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const [date, phaseId] = phaseKey.split('|');
+    const phase = state.schedule[date]?.find(p => p.id === phaseId);
+    if (!phase) return;
 
-    addPdfHeader(doc, bannerDataURL, state, 'SOCSET Master Seating Template');
-    let startY = 32;
+    notify('Generating Seating Plan Excel...', 'success');
 
-    const blocksByRoom = blocksToPrint.reduce((acc, block) => {
+    const wb = XLSX.utils.book_new();
+    const sheetData = [];
+
+    // Add Header Info
+    sheetData.push([`Exam: ${state.examName}`]);
+    sheetData.push([`Date: ${new Date(date + 'T00:00:00').toLocaleDateString('en-GB')}`]);
+    sheetData.push([`Time: ${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`]);
+    sheetData.push([]); // Blank row
+
+    // Table Header
+    sheetData.push(['Room', 'Block No.', 'Subject Name', 'Branch/Sem/Spec', 'Seat Range', 'Students']);
+
+    // Group blocks by room and sort
+    const blocksByRoom = blocksInPhase.reduce((acc, block) => {
         if (!acc[block.roomName]) acc[block.roomName] = [];
         acc[block.roomName].push(block);
         return acc;
     }, {});
-
     const sortedRooms = Object.keys(blocksByRoom).sort((a, b) => {
         const blockA = (blocksByRoom[a][0].blockNo || '0').toString();
         const blockB = (blocksByRoom[b][0].blockNo || '0').toString();
         return blockA.localeCompare(blockB, undefined, { numeric: true });
     });
 
+    // Populate Table Data
     for (const roomName of sortedRooms) {
         const roomBlocks = blocksByRoom[roomName];
-
-        const body = roomBlocks.map(block => [
-            block.blockNo,
-            block.seatRange,
-            block.studentCount,
-            '' // Empty column for subject
-        ]);
-
-        const tableHeight = (body.length + 2) * 10; // Estimate height
-        if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
-            doc.addPage();
-            startY = 20;
-            addPdfHeader(doc, bannerDataURL, state, 'SOCSET Master Seating Template (Contd.)');
-        }
-
-        doc.autoTable({
-            startY: startY,
-            head: [[{ content: `Room: ${roomName}`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: [0, 0, 0], lineColor: [0, 0, 0] } }]],
-            body: [
-                ['Block', 'Seat Range', 'Students', 'Subject / Branch']
-            ].concat(body),
-            theme: 'grid',
-            styles: {
-                cellPadding: 2,
-                fontSize: 10,
-                lineColor: [0, 0, 0],
-                textColor: [0, 0, 0]
-            },
-            headStyles: {
-                fillColor: [240, 240, 240],
-                textColor: [0, 0, 0],
-                fontStyle: 'bold',
-                lineWidth: 0.1,
-            },
-            bodyStyles: {
-                lineWidth: 0.1
-            },
-            columnStyles: {
-                0: { cellWidth: 15, halign: 'center' },
-                1: { cellWidth: 40 },
-                2: { cellWidth: 20, halign: 'center' },
-                3: { cellWidth: 'auto' } // Subject column
-            },
-            didParseCell: function (data) {
-                if (data.row.index === 0 && data.section === 'body') {
-                    data.cell.styles.fontStyle = 'bold';
+        roomBlocks.forEach(block => {
+            const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+            let subjectName = 'N/A';
+            let branchInfo = 'Subject Not Assigned';
+            if (subject) {
+                subjectName = subject.SubjectName;
+                branchInfo = `${subject.Branch} ${subject.Semester}`;
+                if (block.specialization) {
+                    branchInfo += ` (${block.specialization})`;
+                }
+                if (block.isDetained) {
+                    branchInfo += ' (Detained)';
                 }
             }
+            sheetData.push([
+                block.roomName,
+                block.blockNo,
+                subjectName,
+                branchInfo,
+                block.seatRange,
+                block.studentCount
+            ]);
         });
-        startY = doc.autoTable.previous.finalY + 5;
+        // Add room total row
+        const roomTotal = roomBlocks.reduce((sum, b) => sum + parseInt(b.studentCount || 0), 0);
+        const roomData = state.roomsMaster.find(r => r.name === roomName);
+        const roomCap = roomData ? roomData.capacity : 'N/A';
+        sheetData.push([null, null, null, `Total for ${roomName}:`, `${roomTotal} / ${roomCap}`]);
+        sheetData.push([]); // Blank row between rooms
     }
 
-    doc.save(`${state.examName}_Empty_Seating_Template.pdf`);
-}
 
-// --- NEW ---
-function exportPhaseToExcel(phaseKey) {
-    const blocks = state.allotment[phaseKey];
-    if (!blocks || blocks.length === 0) {
-        notify('No blocks created for this session to export.', 'error');
-        return;
-    }
-
-    notify('Generating Excel file...', 'success');
-
-    const sheetData = [
-        ['Room', 'Block No.', 'Subject', 'Branch', 'Semester', 'Specialization', 'Detained', 'Seat Range', 'Students']
-    ];
-
-    // Sort blocks by Room, then by BlockNo
-    const sortedBlocks = [...blocks].sort((a, b) => {
-        if (a.roomName !== b.roomName) {
-            return a.roomName.localeCompare(b.roomName);
-        }
-        return (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true });
-    });
-
-    for (const block of sortedBlocks) {
-        const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
-        const row = [
-            block.roomName,
-            block.blockNo,
-            subject ? subject.SubjectName : 'N/A',
-            subject ? subject.Branch : 'N/A',
-            subject ? subject.Semester : 'N/A',
-            block.specialization || '',
-            block.isDetained ? 'Yes' : 'No',
-            block.seatRange,
-            block.studentCount
-        ];
-        sheetData.push(row);
-    }
-
-    const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-    // Set column widths
+    // Set column widths (optional but nice)
     ws['!cols'] = [
-        { wch: 20 }, // Room
+        { wch: 15 }, // Room
         { wch: 10 }, // Block No.
-        { wch: 40 }, // Subject
-        { wch: 15 }, // Branch
-        { wch: 10 }, // Semester
-        { wch: 15 }, // Specialization
-        { wch: 10 }, // Detained
+        { wch: 40 }, // Subject Name
+        { wch: 30 }, // Branch/Sem/Spec
         { wch: 20 }, // Seat Range
         { wch: 10 }  // Students
     ];
 
+    // Add sheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Seating Plan');
-    XLSX.writeFile(wb, `Seating_Plan_${phaseKey.replace('|', '_')}.xlsx`);
+
+    // Download the file
+    const safeDate = date.replace(/-/g, '');
+    XLSX.writeFile(wb, `${state.examName}_Seating_${safeDate}.xlsx`);
+
 }
 
 
@@ -1372,7 +1325,7 @@ async function generateAnswerSheetPDF() {
             const tableHeight = (tableData.length + 1) * 8 + 10; // Estimated height
             if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
                 doc.addPage();
-                addPdfHeader(doc, bannerDataURL, state, 'AnswerSheet Issue Sheet');
+                addPdfHeader(doc, bannerDataURL, state, 'Answer Sheet Issue Sheet');
                 startY = 35;
             }
 
@@ -1458,6 +1411,230 @@ async function generateLoadMatrixPDF() {
 
     doc.save(`${state.examName}_Load_Matrix.pdf`);
 }
+
+// --- NEW --- Generate Master Arrangement PDF
+async function generateMasterArrangementPDF(selectedPhaseTimes) {
+    if (selectedPhaseTimes.length === 0) {
+        notify('Please select at least one phase time.', 'error');
+        return;
+    }
+    notify('Generating Master Arrangement PDF...', 'success');
+
+    const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+    const subTitle = `Selected Times: ${selectedPhaseTimes.join(', ')}`;
+    addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle);
+
+    let startY = 32;
+    const blocksByBlockNo = {}; // Group by Block Number
+
+    // Collect all relevant blocks
+    Object.keys(state.allotment).forEach(phaseKey => {
+        const [date, phaseId] = phaseKey.split('|');
+        const phase = state.schedule[date]?.find(p => p.id === phaseId);
+        if (!phase) return;
+
+        const phaseTimeLabel = `${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`;
+        if (selectedPhaseTimes.includes('All Phases') || selectedPhaseTimes.includes(phaseTimeLabel)) {
+            state.allotment[phaseKey].forEach(block => {
+                if (!blocksByBlockNo[block.blockNo]) {
+                    blocksByBlockNo[block.blockNo] = {
+                        blockNo: block.blockNo,
+                        roomName: block.roomName,
+                        seatRange: block.seatRange,
+                        studentCount: block.studentCount, // This is block total count
+                        subjects: []
+                    };
+                }
+                const subject = state.subjectsMasterList.find(s => s.id === block.subjectId);
+                if (subject) {
+                     // Check if this subject is already added for this block (avoid duplicates if same subject runs multiple days)
+                    if (!blocksByBlockNo[block.blockNo].subjects.some(s => s.id === subject.id)) {
+                        blocksByBlockNo[block.blockNo].subjects.push({
+                            id: subject.id,
+                            name: subject.SubjectName,
+                            branch: subject.Branch,
+                            semester: subject.Semester,
+                            specialization: block.specialization || (subject.Specialization ? subject.Specialization.join('/') : ''),
+                            isDetained: block.isDetained
+                        });
+                    }
+                }
+            });
+        }
+    });
+
+    const sortedBlockNumbers = Object.keys(blocksByBlockNo).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    if (sortedBlockNumbers.length === 0) {
+        notify('No blocks found for the selected phase times.', 'warning');
+        doc.text('No blocks found for the selected phase times.', 14, startY + 10);
+        doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_')}.pdf`);
+        return;
+    }
+
+
+    for (const blockNo of sortedBlockNumbers) {
+        const blockData = blocksByBlockNo[blockNo];
+        const subjectLines = blockData.subjects.map(sub => {
+            let specText = sub.specialization ? ` (${sub.specialization})` : '';
+            let detainText = sub.isDetained ? ' (Detained)' : '';
+            return `${sub.name} (${sub.branch} ${sub.semester}${specText})${detainText}`;
+        });
+
+        const tableBody = [
+            [{ content: subjectLines.join('\n'), styles: { halign: 'left', minCellHeight: 15 } }], // Subject details (one cell spanning width)
+            [`Block Total: ${blockData.studentCount} Students`, `Block Seats: ${blockData.seatRange}`] // Block info in two cells
+        ];
+
+
+        const tableHeightEstimate = 10 + (subjectLines.length * 5) + 10; // Header + subjects + footer
+
+        if (startY + tableHeightEstimate > doc.internal.pageSize.getHeight() - 15) {
+            doc.addPage();
+            addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle + " (Contd.)");
+            startY = 32;
+        }
+
+        doc.autoTable({
+            startY: startY,
+            head: [[{ content: `Block: ${blockData.blockNo} (Room: ${blockData.roomName})`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: [0, 0, 0] } }]],
+            body: tableBody,
+            theme: 'grid',
+            styles: { fontSize: 9, lineColor: [0, 0, 0], lineWidth: 0.2 },
+            columnStyles: {
+                 0: { fontStyle: 'bold' }, // Style the first cell (block total)
+                 1: { halign: 'right', fontStyle: 'italic' } // Style the second cell (seat range)
+            },
+            didParseCell: (data) => {
+                 // Make the "Subject Details" cell span both columns
+                 if (data.row.index === 0 && data.section === 'body') {
+                     data.cell.colSpan = 2;
+                 }
+                 // Style the row with Block Total/Seats
+                 if (data.row.index === 1 && data.section === 'body') {
+                     data.cell.styles.fillColor = [245, 245, 245];
+                     data.cell.styles.fontSize = 8;
+                 }
+            }
+
+        });
+        startY = doc.autoTable.previous.finalY + 8;
+    }
+
+
+    doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_')}.pdf`);
+}
+
+// --- NEW --- Export Master Arrangement to Excel
+function exportMasterArrangementToExcel(selectedPhaseTimes) {
+     if (selectedPhaseTimes.length === 0) {
+        notify('Please select at least one phase time.', 'error');
+        return;
+    }
+    notify('Generating Master Arrangement Excel...', 'success');
+
+    const wb = XLSX.utils.book_new();
+    const sheetData = [];
+    const merges = [];
+    let currentRow = 0; // Track the current row index
+
+    // Add Header Info
+    sheetData.push([`Exam: ${state.examName}`]); currentRow++;
+    sheetData.push([`Selected Times: ${selectedPhaseTimes.join(', ')}`]); currentRow++;
+    sheetData.push([]); currentRow++; // Blank row
+
+    const blocksByBlockNo = {}; // Group by Block Number
+
+    // Collect all relevant blocks
+    Object.keys(state.allotment).forEach(phaseKey => {
+        const [date, phaseId] = phaseKey.split('|');
+        const phase = state.schedule[date]?.find(p => p.id === phaseId);
+        if (!phase) return;
+
+        const phaseTimeLabel = `${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`;
+        if (selectedPhaseTimes.includes('All Phases') || selectedPhaseTimes.includes(phaseTimeLabel)) {
+            state.allotment[phaseKey].forEach(block => {
+                if (!blocksByBlockNo[block.blockNo]) {
+                    blocksByBlockNo[block.blockNo] = {
+                        blockNo: block.blockNo,
+                        roomName: block.roomName,
+                        seatRange: block.seatRange,
+                        studentCount: block.studentCount,
+                        subjects: []
+                    };
+                }
+                 const subject = state.subjectsMasterList.find(s => s.id === block.subjectId);
+                 if (subject) {
+                     // Check if this subject is already added for this block
+                     if (!blocksByBlockNo[block.blockNo].subjects.some(s => s.id === subject.id)) {
+                         blocksByBlockNo[block.blockNo].subjects.push({
+                             id: subject.id,
+                             name: subject.SubjectName,
+                             branch: subject.Branch,
+                             semester: subject.Semester,
+                             specialization: block.specialization || (subject.Specialization ? subject.Specialization.join('/') : ''),
+                             isDetained: block.isDetained
+                         });
+                     }
+                 }
+            });
+        }
+    });
+
+     const sortedBlockNumbers = Object.keys(blocksByBlockNo).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+     if (sortedBlockNumbers.length === 0) {
+         notify('No blocks found for the selected phase times.', 'warning');
+         return;
+     }
+
+     // Add Table Header Row (optional, but good practice)
+     // sheetData.push(['Block Info', 'Subject Details']); currentRow++;
+
+    for (const blockNo of sortedBlockNumbers) {
+        const blockData = blocksByBlockNo[blockNo];
+        const blockHeader = `Block: ${blockData.blockNo} (Room: ${blockData.roomName})`;
+
+        // Add Block Header Row - Merged
+        sheetData.push([blockHeader, null]); // Add null for the second cell to allow merge
+        merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 1 } }); // Define merge range
+        currentRow++;
+
+        // Add Subject Rows
+        blockData.subjects.forEach(sub => {
+            let specText = sub.specialization ? ` (${sub.specialization})` : '';
+            let detainText = sub.isDetained ? ' (Detained)' : '';
+            const subjectDetail = `${sub.name} (${sub.branch} ${sub.semester}${specText})${detainText}`;
+            sheetData.push([null, subjectDetail]); // Subject detail in the second column
+             currentRow++;
+        });
+
+        // Add Block Footer Row
+        const footerText1 = `Block Total: ${blockData.studentCount} Students`;
+        const footerText2 = `Block Seats: ${blockData.seatRange}`;
+        sheetData.push([footerText1, footerText2]);
+        currentRow++;
+
+        // Add Blank Row Spacer
+        sheetData.push([]); currentRow++;
+    }
+
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!merges'] = merges;
+
+     // Set column widths
+     ws['!cols'] = [ { wch: 40 }, { wch: 60 } ];
+
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Master Arrangement');
+    XLSX.writeFile(wb, `${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_')}.xlsx`);
+
+}
+
 
 // --- SCHEDULING LOGIC (New & Refactored) ---
 
@@ -1674,32 +1851,33 @@ function handleGlobalClick(e) {
         notify(`Copied ${sourceBlocks.length} blocks. Go to another session and click 'Paste'.`, 'success');
         render(); // Re-render to show "Copied!" status
     }
-    
-    // --- MODIFIED ---
     const pasteBlocksBtn = e.target.closest('.paste-blocks-btn');
     if (pasteBlocksBtn && state.copiedAllotment) {
         const targetKey = pasteBlocksBtn.dataset.targetKey;
-        const sourceBlocks = state.copiedAllotment.blocks;
-        
-        // New logic: Paste layout WITHOUT subjects
-        const newBlocks = sourceBlocks.map(sourceBlock => {
-            return {
-                // Copy only layout info
-                id: `block_${Date.now()}_${Math.random()}`,
-                roomName: sourceBlock.roomName,
-                seatRange: sourceBlock.seatRange,
-                blockNo: sourceBlock.blockNo,
-                studentCount: sourceBlock.studentCount,
-                
-                // Explicitly set subject info to null
-                subjectId: null,
-                specialization: null,
-                isDetained: false
-            };
-        });
+        const [targetDate, targetPhaseId] = targetKey.split('|');
+        const targetPhase = state.schedule[targetDate]?.find(p => p.id === targetPhaseId);
+        if (!targetPhase) {
+            notify('Target phase not found.', 'error');
+            return;
+        }
+
+        const sourceBlocks = JSON.parse(JSON.stringify(state.copiedAllotment.blocks)); // Deep copy
+
+        // --- MODIFIED --- Paste only layout, clear subject info
+        const newBlocks = sourceBlocks.map(block => ({
+            ...block,
+            id: `block_${Date.now()}_${Math.random()}`, // New unique ID
+            subjectId: null, // Clear subject
+            specialization: null, // Clear specialization
+            isDetained: false // Reset detained status
+        }));
 
         state.allotment[targetKey] = newBlocks;
-        notify(`Plan layout pasted with ${newBlocks.length} blocks. Please use the 'Edit' button on each block to assign subjects.`, 'success');
+        notify(`Seating plan layout pasted successfully. Assign subjects to the blocks.`, 'success');
+
+        // Optional: Clear copied state after pasting
+        // state.copiedAllotment = null;
+
         render();
         saveState();
     }
@@ -1707,20 +1885,17 @@ function handleGlobalClick(e) {
     if (e.target.closest('#download-seating-pdf')) {
         showSeatingPdfOptionsModal();
     }
-
-    // --- NEW ---
-    if (e.target.closest('#download-empty-template-pdf')) {
-        generateEmptySeatingPDF();
+     // --- NEW --- Listener for Master Arrangement button
+     if (e.target.closest('#download-master-arrangement')) {
+        showMasterArrangementModal();
     }
+     // --- NEW --- Listener for phase-wise Excel download
+     const downloadPhaseExcelBtn = e.target.closest('.download-phase-excel-btn');
+     if (downloadPhaseExcelBtn) {
+         exportPhaseSeatingToExcel(downloadPhaseExcelBtn.dataset.phaseKey);
+     }
 
-    // --- NEW ---
-    // Note: You must add buttons with class="download-phase-excel-btn" and data-phase-key="..." in app-ui.js
-    const downloadExcelBtn = e.target.closest('.download-phase-excel-btn');
-    if (downloadExcelBtn) {
-        const phaseKey = downloadExcelBtn.dataset.phaseKey;
-        exportPhaseToExcel(phaseKey);
-    }
-    
+
     if (e.target.closest('#preview-duty-pdf')) showDutySheetModal();
 
     if (e.target.closest('#export-duty-sheet-excel')) {
@@ -1757,6 +1932,26 @@ function handleGlobalClick(e) {
             saveState();
         }
     }
+
+     // --- NEW --- Handle Master Arrangement Modal Downloads
+    const downloadMasterPdfBtn = e.target.closest('#modal-download-master-pdf');
+    if (downloadMasterPdfBtn) {
+        const form = downloadMasterPdfBtn.closest('form');
+        const formData = new FormData(form);
+        const selectedPhaseTimes = formData.getAll('phaseTime');
+        state.modal.visible = false;
+        render(); // Close modal
+        generateMasterArrangementPDF(selectedPhaseTimes);
+    }
+    const downloadMasterExcelBtn = e.target.closest('#modal-download-master-excel');
+    if (downloadMasterExcelBtn) {
+        const form = downloadMasterExcelBtn.closest('form');
+        const formData = new FormData(form);
+        const selectedPhaseTimes = formData.getAll('phaseTime');
+        state.modal.visible = false;
+        render(); // Close modal
+        exportMasterArrangementToExcel(selectedPhaseTimes);
+    }
 }
 function handleGlobalChange(e) {
     if (e.target.id === 'exam-session' || e.target.id === 'exam-year') {
@@ -1768,23 +1963,14 @@ function handleGlobalChange(e) {
     if (e.target.matches('#subject-file-upload')) { handleFileUpload(e.target.files[0], 'subject'); e.target.value = ''; }
     if (e.target.matches('#room-file-upload')) { handleFileUpload(e.target.files[0], 'room'); e.target.value = ''; }
     if (e.target.matches('#faculty-file-upload')) { handleFileUpload(e.target.files[0], 'faculty'); e.target.value = ''; }
-    
-    // --- NEW ---
-    // Note: You must add the input with id="import-seating-plan-excel" in app-ui.js
-    // This part is commented out as it requires a complex modal flow we didn't finalize.
-    // The "Copy/Paste" is the primary method for now.
-    /*
-    if (e.target.matches('#import-seating-plan-excel')) { 
-        handleFileUpload(e.target.files[0], 'seating-plan'); 
-        e.target.value = ''; 
-    }
-    */
 
-    if (e.target.dataset.action === 'update-specializations') {
+     // --- MODIFIED --- Also check if inside edit-block-form
+    if (e.target.dataset.action === 'update-specializations' && (e.target.closest('.add-block-form') || e.target.closest('#edit-block-form'))) {
         const selectedOption = e.target.options[e.target.selectedIndex];
         const subjectId = selectedOption.dataset.subjectId;
         handleSubjectChange(subjectId, e.target.closest('form'));
     }
+
 }
 
 function handleGlobalSubmit(e) {
@@ -1838,36 +2024,37 @@ function handleGlobalSubmit(e) {
         const formData = new FormData(e.target);
         const blockIndex = state.allotment[phaseKey].findIndex(b => b.id === blockId);
         if (blockIndex > -1) {
-            
-            // --- MODIFIED ---
-            // When editing, we must also grab the subject info if it's a blank block
-            const currentBlock = state.allotment[phaseKey][blockIndex];
-            let subjectId = currentBlock.subjectId;
-            let isDetained = currentBlock.isDetained;
+            const existingBlock = state.allotment[phaseKey][blockIndex];
+            let subjectId = existingBlock.subjectId; // Keep existing if already set
+            let isDetained = existingBlock.isDetained;
 
-            // Check if we are editing a block that was pasted blank
-            if (!subjectId) {
-                const instanceId = formData.get('scheduledInstanceId'); // This field MUST be in the edit modal
-                if(instanceId) {
-                    let scheduledItem = null;
-                    for (const date in state.schedule) {
-                        for (const phase of state.schedule[date]) {
-                            const found = phase.subjects.find(item => item.instanceId === instanceId);
-                            if (found) { scheduledItem = found; break; }
-                        }
-                        if (scheduledItem) break;
-                    }
-                    if(scheduledItem) {
-                        subjectId = scheduledItem.subjectId;
-                        isDetained = scheduledItem.studentType === 'detained';
-                    }
-                }
+            // --- MODIFIED --- Only update subject if it was initially empty
+            if (!existingBlock.subjectId) {
+                 const instanceId = formData.get('scheduledInstanceId');
+                 let scheduledItem = null;
+                 if (instanceId) {
+                      for (const date in state.schedule) {
+                         for (const phase of state.schedule[date]) {
+                             const found = phase.subjects.find(item => item.instanceId === instanceId);
+                             if (found) { scheduledItem = found; break; }
+                         }
+                         if (scheduledItem) break;
+                      }
+                 }
+                 if (scheduledItem) {
+                     subjectId = scheduledItem.subjectId;
+                     isDetained = scheduledItem.studentType === 'detained';
+                 } else {
+                     notify('Please select a subject for this block.', 'error');
+                     return; // Don't save if subject isn't selected for a new block
+                 }
             }
-            
+
+
             state.allotment[phaseKey][blockIndex] = {
-                ...currentBlock,
-                subjectId: subjectId, // Update subjectId
-                isDetained: isDetained, // Update isDetained
+                ...existingBlock,
+                subjectId: subjectId, // Update based on logic above
+                isDetained: isDetained, // Update based on logic above
                 specialization: formData.get('specialization') || null,
                 roomName: formData.get('roomName'),
                 seatRange: formData.get('seatRange'),
@@ -2075,3 +2262,4 @@ function init() {
     });
 }
 window.addEventListener('DOMContentLoaded', init);
+

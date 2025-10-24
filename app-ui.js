@@ -85,13 +85,15 @@ function renderStepContent() {
     if (state.currentStep === 4) {
         document.querySelectorAll('.add-block-form [data-action="update-specializations"]').forEach(el => {
             const selectedOption = el.options[el.selectedIndex];
-            const subjectId = selectedOption.dataset.subjectId;
+            // --- FIX --- Check if selectedOption exists before accessing dataset
+            const subjectId = selectedOption ? selectedOption.dataset.subjectId : null;
             handleSubjectChange(subjectId, el.closest('form'));
         });
         // --- MODIFIED --- Add listener for edit modal subject change
         document.querySelectorAll('#edit-block-form [data-action="update-specializations"]').forEach(el => {
             const selectedOption = el.options[el.selectedIndex];
-            const subjectId = selectedOption.dataset.subjectId;
+             // --- FIX --- Check if selectedOption exists before accessing dataset
+            const subjectId = selectedOption ? selectedOption.dataset.subjectId : null;
             handleSubjectChange(subjectId, el.closest('form'));
         });
     }
@@ -894,6 +896,76 @@ function renderDutyRoomsForPhase(phaseKey) {
 
 // --- MODAL & DYNAMIC HELPERS ---
 
+// ********** START BUG FIX #1 **********
+// --- ADDED THIS ENTIRE FUNCTION ---
+/**
+ * Dynamically updates the specialization dropdown in a form.
+ * @param {string | null} subjectId The ID of the selected subject.
+ * @param {HTMLFormElement} formElement The <form> element containing the dropdowns.
+ */
+function handleSubjectChange(subjectId, formElement) {
+    const container = formElement.querySelector('.specialization-container');
+    if (!container) return; // Exit if no container found
+
+    // Clear previous options
+    container.innerHTML = '';
+
+    if (!subjectId) {
+        return; // No subject selected, so leave the container empty
+    }
+
+    const subject = state.subjectsMasterList.find(s => s.id == subjectId);
+
+    // Only show specialization dropdown if the subject has specializations listed
+    if (subject && subject.Specialization && subject.Specialization.length > 0) {
+        // Build the HTML for the dropdown
+        const optionsHtml = subject.Specialization.map(spec => 
+            `<option value="${spec}">${spec}</option>`
+        ).join('');
+
+        container.innerHTML = `
+            <label class="text-xs font-medium text-gray-600">Specialization</label>
+            <select name="specialization" class="block w-full p-2 border rounded-md text-sm mt-1">
+                <option value="ALL COURSES">ALL COURSES (Remedial/Combined)</option>
+                ${optionsHtml}
+            </select>
+        `;
+    }
+    // If the subject has no specializations, the container remains empty, which is correct.
+}
+// ********** END BUG FIX #1 **********
+
+
+function renderModal() {
+    const container = $('#modal-container');
+    if (!state.modal.visible) {
+        container.innerHTML = '';
+        document.body.style.overflow = '';
+        return;
+    }
+    document.body.style.overflow = 'hidden';
+    container.innerHTML = `
+                <div id="modal-overlay" class="fixed inset-0 bg-black/50 z-40"></div>
+                <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-lg shadow-2xl max-h-[90vh] flex flex-col w-full max-w-lg animate-modal-in" id="modal-content-wrapper">
+                        <div class="flex justify-between items-center p-4 border-b">
+                            <h3 class="text-lg font-bold text-gray-800">${state.modal.title}</h3>
+                            <button id="modal-close-btn" class="text-gray-400 hover:text-gray-600">${ICONS.XClose}</button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto">
+                            ${state.modal.content}
+                        </div>
+                    </div>
+                </div>`;
+    // Adjust modal width if content requests it (e.g., for wide tables)
+    const contentWrapper = $('#modal-content-wrapper');
+    const wideContent = contentWrapper.querySelector('.max-w-5xl, .max-w-7xl');
+    if (wideContent) {
+        contentWrapper.style.maxWidth = wideContent.classList.contains('max-w-5xl') ? '56rem' : '80rem'; // 900px or 1280px
+    }
+}
+
+
 function generateTimetableHTML() {
     const regularScheduledItems = [];
     const detainedScheduledItems = [];
@@ -1578,13 +1650,6 @@ function showMasterArrangementModal() {
     }, 0); // Run after current execution stack clears
 }
 
-// ... rest of the functions (init, listeners, etc.) ...
-// (Make sure the existing renderModal, notify, etc. functions are present)
-// The handleGlobalClick needs the call:
-// if (e.target.closest('#download-master-arrangement')) {
-//     showMasterArrangementModal(); // Make sure this line exists and is correct
-// }
-
 // --- INITIALIZATION ---
 function init() {
     loadState(); // Load state first
@@ -1718,4 +1783,3 @@ function init() {
     });
 }
 window.addEventListener('DOMContentLoaded', init);
-

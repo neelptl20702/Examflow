@@ -24,7 +24,7 @@ let state = {
     },
     facultySearchTerm: '',
     draggedItemId: null,
-    draggedItemType: null, // Ensured the stray 'a' is removed
+    draggedItemType: null, 
     modal: { visible: false, title: '', content: '' }
 };
 
@@ -136,9 +136,10 @@ function addSubjectManually() {
     const specializations = Array.from(document.querySelectorAll('[name="subject-specialization"]:checked')).map(cb => cb.value);
 
     if (code && name && branch && semester) {
-        state.subjectsMasterList.push({ id: Date.now(), SubjectCode: code, SubjectName: name, Branch: branch, Semester: semester, Specialization: specializations });
+        // --- FIX BUG #5: Use more unique ID ---
+        state.subjectsMasterList.push({ id: Date.now() + Math.random(), SubjectCode: code, SubjectName: name, Branch: branch, Semester: semester, Specialization: specializations });
         notify('Subject added to master list.');
-        render();
+        render(); // Re-render to clear fields via renderStep2_Subjects
         saveState();
     } else {
         notify('Please fill all required fields for manual entry.', 'error');
@@ -163,7 +164,7 @@ function addRoom() {
     const name = nameInput.value.trim();
     const capacity = parseInt(capacityInput.value);
     if (name && capacity > 0) {
-        state.roomsMaster.push({ id: `room_${Date.now()}`, name, capacity });
+        state.roomsMaster.push({ id: `room_${Date.now()}_${Math.random()}`, name, capacity });
         nameInput.value = '';
         capacityInput.value = '';
         notify('Room added successfully.', 'success');
@@ -226,7 +227,7 @@ function handleAddBlock(form, phaseKey) {
         state.allotment[phaseKey].push(block);
         form.reset();
         // --- ADDED --- Reset specialization dropdown after adding
-        handleSubjectChange(null, form);
+        handleSubjectChange(null, form); // Ensure handleSubjectChange exists in app-ui.js
         render();
         saveState();
     } else {
@@ -267,7 +268,7 @@ async function handleFileUpload(file, type) {
                     header.forEach((h, i) => obj[h] = row[i]);
                     return obj;
                 }).map(r => ({
-                    id: Date.now() + Math.random(),
+                    id: Date.now() + Math.random(), // Consistent ID
                     SubjectCode: r.SubjectCode, SubjectName: r.SubjectName, Branch: r.Branch,
                     Semester: `Sem ${r.Semester}`, Specialization: r.Specialization ? String(r.Specialization).split(',').map(s => s.trim().toUpperCase()) : []
                 })).filter(s => s.SubjectCode && s.SubjectName);
@@ -576,6 +577,11 @@ async function generateTimetablePDF() {
                 addPdfHeader(doc, bannerDataURL, state); // Add header to new page
                 // Add the main title (e.g., "TIME-TABLE (DETAINED)") to the new page
                 doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0); doc.text(`${title} (Contd.)`, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
+
+                // --- FIX BUG #4: Add missing session line ---
+                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER`, doc.internal.pageSize.getWidth() / 2, 38, { align: 'center' });
+                // --- END FIX ---
+
                 startY = 55; // Reset startY for new page
             }
 
@@ -1498,14 +1504,16 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
         return acc;
     }, {});
 
+     // --- FIX BUG #2: Correct Regex for sorting ---
      const sortedBlockGroupKeys = Object.keys(blocksGrouped).sort((a, b) => {
          // Extract room and block for sorting
-         const [, blockA, roomA] = a.match(/Block (\S+) \(Room: (.*)\)/) || [];
-         const [, blockB, roomB] = b.match(/Block (\S+) \(Room: (.*)\)/) || [];
+         const [, blockA, roomA] = a.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
+         const [, blockB, roomB] = b.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
          const roomCompare = roomA.localeCompare(roomB);
          if (roomCompare !== 0) return roomCompare;
          return (blockA || '').localeCompare(blockB || '', undefined, { numeric: true });
      });
+     // --- END FIX ---
 
 
     for (const blockKey of sortedBlockGroupKeys) {
@@ -1673,13 +1681,15 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
         return acc;
     }, {});
 
+     // --- FIX BUG #2: Correct Regex for sorting ---
      const sortedBlockGroupKeys = Object.keys(blocksGrouped).sort((a, b) => {
-         const [, blockA, roomA] = a.match(/Block (\S+) \(Room: (.*)\)/) || [];
-         const [, blockB, roomB] = b.match(/Block (\S+) \(Room: (.*)\)/) || [];
+         const [, blockA, roomA] = a.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
+         const [, blockB, roomB] = b.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
          const roomCompare = roomA.localeCompare(roomB);
          if (roomCompare !== 0) return roomCompare;
          return (blockA || '').localeCompare(blockB || '', undefined, { numeric: true });
      });
+     // --- END FIX ---
 
 
     // Process each block group
@@ -1988,7 +1998,7 @@ function handleGlobalClick(e) {
     }
      // --- NEW --- Listener for Master Arrangement button
      if (e.target.closest('#download-master-arrangement')) {
-        showMasterArrangementModal(); // Call the new modal function
+        showMasterArrangementModal(); // Call the new modal function (defined in app-ui.js)
     }
      // --- NEW --- Listener for phase-wise Excel download
      const downloadPhaseExcelBtn = e.target.closest('.download-phase-excel-btn');
@@ -2068,8 +2078,8 @@ function handleGlobalChange(e) {
      // --- MODIFIED --- Also check if inside edit-block-form
     if (e.target.dataset.action === 'update-specializations' && (e.target.closest('.add-block-form') || e.target.closest('#edit-block-form'))) {
         const selectedOption = e.target.options[e.target.selectedIndex];
-        const subjectId = selectedOption.dataset.subjectId;
-        handleSubjectChange(subjectId, e.target.closest('form'));
+        const subjectId = selectedOption ? selectedOption.dataset.subjectId : null; // Check if selectedOption exists
+        handleSubjectChange(subjectId, e.target.closest('form')); // Ensure handleSubjectChange exists in app-ui.js
     }
 
 }
@@ -2230,95 +2240,10 @@ function toggleSplitButton(menuId) {
     }
 }
 
-// --- ADDED - showMasterArrangementModal function ---
-// This function needs to be defined so it can be called.
-function showMasterArrangementModal() {
-    // Get unique phase times from schedule
-    const phaseTimes = new Set();
-    Object.values(state.schedule).flat().forEach(phase => {
-        phaseTimes.add(`${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`);
-    });
-    const sortedPhaseTimes = [...phaseTimes].sort();
-
-    if (sortedPhaseTimes.length === 0) {
-        notify('No exam phases scheduled yet. Cannot generate master arrangement.', 'warning');
-        return;
-    }
-
-    const content = `
-        <form id="master-arrangement-options-form" class="p-6 space-y-4">
-            <p class="text-sm text-gray-600">Select the phase time(s) to include in the master arrangement. The report will include all scheduled days for the selected times.</p>
-            <div>
-                <label class="font-semibold text-gray-700 block mb-2">Select Phase Times:</label>
-                <div class="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3 bg-gray-50">
-                    <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
-                        <input type="checkbox" name="phaseTime" value="All Phases" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
-                        <span class="font-bold">All Phases</span>
-                    </label>
-                    ${sortedPhaseTimes.map(time => `
-                        <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
-                            <input type="checkbox" name="phaseTime" value="${time}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
-                            <span>${time}</span>
-                        </label>
-                    `).join('')}
-                </div>
-            </div>
-            <div class="pt-6 flex justify-end gap-3 border-t">
-                <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm">Cancel</button>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="modal-download-master-pdf" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 flex items-center gap-1.5 text-sm">
-                        ${ICONS.Printer} PDF
-                    </button>
-                    <button type="button" id="modal-download-master-excel" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 flex items-center gap-1.5 text-sm">
-                        ${ICONS.Excel} Excel
-                    </button>
-                </div>
-            </div>
-        </form>
-    `;
-
-    state.modal = {
-        visible: true,
-        title: 'Download Master Arrangement',
-        content: content
-    };
-    render(); // Call render to display the modal
-
-    // Add logic to handle "All Phases" checkbox AFTER the modal is rendered
-    // Use setTimeout to ensure the elements exist in the DOM
-    setTimeout(() => {
-        const allPhasesCheckbox = document.querySelector('#master-arrangement-options-form input[value="All Phases"]');
-        const individualPhaseCheckboxes = document.querySelectorAll('#master-arrangement-options-form input[name="phaseTime"]:not([value="All Phases"])');
-
-        if (!allPhasesCheckbox) return; // Exit if elements not found
-
-        allPhasesCheckbox.addEventListener('change', (e) => {
-            const isChecked = e.target.checked;
-            individualPhaseCheckboxes.forEach(cb => {
-                cb.checked = isChecked;
-                cb.disabled = isChecked;
-            });
-        });
-
-        individualPhaseCheckboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                 if (!cb.checked) {
-                     allPhasesCheckbox.checked = false;
-                     allPhasesCheckbox.disabled = false; // Enable "All Phases" if any individual is unchecked
-                 } else {
-                     // Check if all individuals are checked
-                     const allChecked = Array.from(individualPhaseCheckboxes).every(iCb => iCb.checked);
-                     if(allChecked) {
-                         allPhasesCheckbox.checked = true;
-                         // Keep individuals enabled, but check "All Phases"
-                         // individualPhaseCheckboxes.forEach(iCb => iCb.disabled = true);
-                     }
-                 }
-            });
-        });
-    }, 0); // Run after current execution stack clears
-}
-// --- END ADDED FUNCTION ---
+// --- FIX BUG #3: REMOVE DUPLICATE FUNCTION DEFINITION ---
+// The showMasterArrangementModal function previously defined here has been removed.
+// The correct version exists in app-ui.js.
+// --- END FIX ---
 
 function init() {
     loadState(); // Load state first
@@ -2452,4 +2377,3 @@ function init() {
     });
 }
 window.addEventListener('DOMContentLoaded', init);
-

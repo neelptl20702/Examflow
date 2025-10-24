@@ -24,7 +24,7 @@ let state = {
     },
     facultySearchTerm: '',
     draggedItemId: null,
-    draggedItemType: null, 
+    draggedItemType: null,
     modal: { visible: false, title: '', content: '' }
 };
 
@@ -136,10 +136,10 @@ function addSubjectManually() {
     const specializations = Array.from(document.querySelectorAll('[name="subject-specialization"]:checked')).map(cb => cb.value);
 
     if (code && name && branch && semester) {
-        // --- FIX BUG #5: Use more unique ID ---
+        // --- FIX #5: Use more robust ID generation ---
         state.subjectsMasterList.push({ id: Date.now() + Math.random(), SubjectCode: code, SubjectName: name, Branch: branch, Semester: semester, Specialization: specializations });
         notify('Subject added to master list.');
-        render(); // Re-render to clear fields via renderStep2_Subjects
+        render();
         saveState();
     } else {
         notify('Please fill all required fields for manual entry.', 'error');
@@ -164,7 +164,7 @@ function addRoom() {
     const name = nameInput.value.trim();
     const capacity = parseInt(capacityInput.value);
     if (name && capacity > 0) {
-        state.roomsMaster.push({ id: `room_${Date.now()}_${Math.random()}`, name, capacity });
+        state.roomsMaster.push({ id: `room_${Date.now()}`, name, capacity });
         nameInput.value = '';
         capacityInput.value = '';
         notify('Room added successfully.', 'success');
@@ -227,7 +227,7 @@ function handleAddBlock(form, phaseKey) {
         state.allotment[phaseKey].push(block);
         form.reset();
         // --- ADDED --- Reset specialization dropdown after adding
-        handleSubjectChange(null, form); // Ensure handleSubjectChange exists in app-ui.js
+        handleSubjectChange(null, form);
         render();
         saveState();
     } else {
@@ -268,7 +268,7 @@ async function handleFileUpload(file, type) {
                     header.forEach((h, i) => obj[h] = row[i]);
                     return obj;
                 }).map(r => ({
-                    id: Date.now() + Math.random(), // Consistent ID
+                    id: Date.now() + Math.random(),
                     SubjectCode: r.SubjectCode, SubjectName: r.SubjectName, Branch: r.Branch,
                     Semester: `Sem ${r.Semester}`, Specialization: r.Specialization ? String(r.Specialization).split(',').map(s => s.trim().toUpperCase()) : []
                 })).filter(s => s.SubjectCode && s.SubjectName);
@@ -577,8 +577,8 @@ async function generateTimetablePDF() {
                 addPdfHeader(doc, bannerDataURL, state); // Add header to new page
                 // Add the main title (e.g., "TIME-TABLE (DETAINED)") to the new page
                 doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 0, 0); doc.text(`${title} (Contd.)`, doc.internal.pageSize.getWidth() / 2, 45, { align: 'center' });
-
-                // --- FIX BUG #4: Add missing session line ---
+                
+                // --- FIX #4: Add missing Academic Session line on new pages ---
                 doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`${academicSession} SEMESTER`, doc.internal.pageSize.getWidth() / 2, 38, { align: 'center' });
                 // --- END FIX ---
 
@@ -1433,12 +1433,16 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
     const subTitle = `Selected Times: ${selectedPhaseTimes.join(', ')}`;
-    addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle);
+    // Add header - Assuming this reserves about 30mm at the top
+    addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle); 
+    let startY = 32; // Initial Y position after header
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const bottomMargin = 15; // Space to leave at the bottom
 
-    let startY = 32;
     const allBlockEntries = []; // Collect all individual block entries
 
-    // Collect all relevant block entries
+    // --- (Keep the existing code to collect and sort allBlockEntries) ---
+        // Collect all relevant block entries
     Object.keys(state.allotment).forEach(phaseKey => {
         const [date, phaseId] = phaseKey.split('|');
         const phase = state.schedule[date]?.find(p => p.id === phaseId);
@@ -1453,21 +1457,19 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
 
                 const subject = state.subjectsMasterList.find(s => s.id === blockEntry.subjectId);
                 if (subject) {
-                     // Check if an identical entry (room, block, subject, spec, detained) already exists in our collected list
-                     // This prevents listing the exact same assignment multiple times if it occurs on different days within the selected phases
                      const isDuplicate = allBlockEntries.some(entry =>
                          entry.roomName === blockEntry.roomName &&
                          entry.blockNo === blockEntry.blockNo &&
                          entry.subjectId === blockEntry.subjectId &&
                          entry.specialization === blockEntry.specialization &&
                          entry.isDetained === blockEntry.isDetained &&
-                         entry.seatRange === blockEntry.seatRange // Also check seat range JIC
+                         entry.seatRange === blockEntry.seatRange 
                      );
 
                     if (!isDuplicate) {
                          allBlockEntries.push({
-                             ...blockEntry, // Copy the block entry data
-                             subjectData: subject // Add subject data for formatting
+                             ...blockEntry, 
+                             subjectData: subject 
                          });
                     }
                 }
@@ -1482,15 +1484,17 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
         return (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true });
     });
 
-
     if (allBlockEntries.length === 0) {
         notify('No blocks found for the selected phase times.', 'warning');
+        doc.setFontSize(10); // Use standard font size for message
+        doc.setTextColor(0,0,0); // Black text
         doc.text('No blocks found for the selected phase times.', 14, startY + 10);
          doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_').replace(/[:\s]/g,'')}.pdf`);
         return;
     }
-
-    // Group sorted entries by Block Number + Room Name to handle page breaks correctly
+    
+    // --- (Keep the existing code to group blocksGrouped and sort sortedBlockGroupKeys) ---
+        // Group sorted entries by Block Number + Room Name to handle page breaks correctly
     const blocksGrouped = allBlockEntries.reduce((acc, entry) => {
         const key = `Block ${entry.blockNo} (${entry.roomName})`;
         if (!acc[key]) {
@@ -1504,7 +1508,7 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
         return acc;
     }, {});
 
-     // --- FIX BUG #2: Correct Regex for sorting ---
+    // --- FIX BUG #2: Correct Regex for sorting ---
      const sortedBlockGroupKeys = Object.keys(blocksGrouped).sort((a, b) => {
          // Extract room and block for sorting
          const [, blockA, roomA] = a.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
@@ -1513,90 +1517,147 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
          if (roomCompare !== 0) return roomCompare;
          return (blockA || '').localeCompare(blockB || '', undefined, { numeric: true });
      });
-     // --- END FIX ---
+    // --- END FIX ---
 
+
+    // --- NEW: Dynamic Settings Logic ---
+    const totalBlocks = sortedBlockGroupKeys.length;
+    let totalDataRows = 0;
+    sortedBlockGroupKeys.forEach(key => {
+        totalDataRows += blocksGrouped[key].entries.length;
+    });
+
+    // Define settings for compact and standard layouts
+    const compactSettings = { fontSize: 7, cellPadding: 1, verticalGap: 2.5, headerFontSize: 9, headerPadding: 1.5 };
+    const standardSettings = { fontSize: 8, cellPadding: 1.5, verticalGap: 4, headerFontSize: 10, headerPadding: 2 };
+
+    // Estimate height (rough calculation)
+    // Height ≈ (Block Header Height + Col Header Height + (Data Rows * Row Height) + Total Row Height + Gap) * Num Blocks
+    const estimateHeight = (settings) => {
+        const blockHeaderHeight = settings.headerFontSize * 0.5 + settings.headerPadding * 2; // Approx font height + padding
+        const colHeaderHeight = settings.fontSize * 0.5 + settings.cellPadding * 2;
+        const dataRowHeight = settings.fontSize * 0.5 + settings.cellPadding * 2;
+        const totalRowHeight = dataRowHeight; // Same as data row
+        const avgRowsPerBlock = totalBlocks > 0 ? totalDataRows / totalBlocks : 1;
+
+        const heightPerBlock = blockHeaderHeight + colHeaderHeight + (avgRowsPerBlock * dataRowHeight) + totalRowHeight + settings.verticalGap;
+        return startY + (totalBlocks * heightPerBlock); // Add initial startY
+    };
+
+    const pageHeightAvailable = pageHeight - bottomMargin;
+    let settings;
+
+    if (estimateHeight(compactSettings) <= pageHeightAvailable) {
+        settings = compactSettings;
+        console.log("Using compact settings for single page fit.");
+    } else {
+        settings = standardSettings;
+        console.log("Using standard settings, multi-page likely.");
+    }
+    // --- END: Dynamic Settings Logic ---
+
+
+    let currentY = startY; // Use a separate variable for tracking Y position
 
     for (const blockKey of sortedBlockGroupKeys) {
         const blockGroupData = blocksGrouped[blockKey];
 
+        // --- THEME/CONTENT CHANGE: Combine Branch/Sem/Spec ---
         // Prepare body data for the table specific to this block group
         const tableBody = blockGroupData.entries.map(entry => {
-            let specDisplay = `${entry.subjectData.Semester}`;
-             // Only add specialization if it's not 'ALL COURSES'
-            if(entry.specialization && entry.specialization !== 'ALL COURSES') {
-                specDisplay += ` ${entry.specialization}`;
-            }
-             if (entry.isDetained) {
-                 specDisplay += ' (Detained)';
+             let branchInfo = `${entry.subjectData.Branch} ${entry.subjectData.Semester}`;
+             if(entry.specialization && entry.specialization !== 'ALL COURSES') {
+                 branchInfo += ` (${entry.specialization})`;
              }
-            return [
-                entry.subjectData.Semester, // Sem column
-                { content: entry.studentCount, styles: { fontStyle: 'bold', halign: 'center' } }, // Count column
-                specDisplay, // Specialization column
-                entry.seatRange // Seat Number column
-            ];
-        });
-
-        // Add a row for total students in this block group
+              if (entry.isDetained) {
+                  branchInfo += ' (Detained)';
+              }
+             return [
+                 branchInfo, // Combined Branch/Sem/Spec column
+                 { content: entry.studentCount, styles: { fontStyle: 'bold', halign: 'center' } }, // Count column
+                 entry.seatRange // Seat Number column
+             ];
+         });
          const blockTotalStudents = blockGroupData.entries.reduce((sum, entry) => sum + parseInt(entry.studentCount || 0), 0);
          tableBody.push([
-             { content: `Total:`, colSpan: 1, styles: { halign: 'right', fontStyle: 'bold'} },
-             { content: blockTotalStudents, styles: { fontStyle: 'bold', halign: 'center' } },
-             { content: '', colSpan: 2} // Empty cells to fill row
-         ]);
+              { content: `Total:`, colSpan: 1, styles: { halign: 'right', fontStyle: 'bold'} },
+              { content: blockTotalStudents, styles: { fontStyle: 'bold', halign: 'center' } },
+              { content: '', colSpan: 1} // Changed from 2 to 1
+          ]);
+        // --- END THEME/CONTENT CHANGE ---
 
-        // Estimate height for page break check
-        const estimatedHeight = 10 + (tableBody.length * 7); // Header + Rows
-        if (startY + estimatedHeight > doc.internal.pageSize.getHeight() - 15) {
+        // Estimate height for THIS block using chosen settings
+        const blockHeaderHeight = settings.headerFontSize * 0.5 + settings.headerPadding * 2;
+        const colHeaderHeight = settings.fontSize * 0.5 + settings.cellPadding * 2;
+        const dataRowHeight = settings.fontSize * 0.5 + settings.cellPadding * 2;
+        const estimatedHeightForBlock = blockHeaderHeight + colHeaderHeight + (tableBody.length * dataRowHeight); 
+
+        // Check for page break BEFORE drawing
+        if (currentY + estimatedHeightForBlock > pageHeightAvailable) {
             doc.addPage();
             addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle + " (Contd.)");
-            startY = 32;
+            currentY = 32; // Reset Y for new page
         }
 
-        // Draw the table for this block
+        // --- THEME/CONTENT CHANGE: Apply Dynamic Settings and Theme ---
         doc.autoTable({
-            startY: startY,
-            // Block Header Row
-            head: [[{ content: `Block: ${blockGroupData.blockNo} (Room: ${blockGroupData.roomName})`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: [0, 0, 0] } }]],
-            // Column Headers
+            startY: currentY,
+            head: [[{ 
+                content: `Block: ${blockGroupData.blockNo} (Room: ${blockGroupData.roomName})`, 
+                colSpan: 3, // Changed from 4 to 3
+                styles: { 
+                    fontStyle: 'bold', 
+                    fillColor: [240, 240, 240], // Light Grey Fill
+                    textColor: [0, 0, 0],       // Black Text
+                    fontSize: settings.headerFontSize, 
+                    cellPadding: settings.headerPadding,
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.2
+                } 
+            }]],
             body: [
-                 ['Sem', 'Count', 'Specialization', 'Seat Number'] // Your desired columns
-            ].concat(tableBody), // Add the data rows
-            theme: 'grid',
-            styles: { fontSize: 8, cellPadding: 1.5, lineColor: [0, 0, 0], lineWidth: 0.2 },
-             headStyles: { // Styles for the Block Header row
-                 fontStyle: 'bold',
-                 fillColor: [220, 220, 220],
-                 textColor: [0, 0, 0],
-                 fontSize: 10,
-                 cellPadding: 2,
-             },
-            bodyStyles: { // Styles for data rows + column header row
-                 // fillColor: [255, 255, 255] // Ensure body rows have white background if needed
+                 ['Branch / Sem / Spec', 'Count', 'Seat Number'] // Changed headers
+            ].concat(tableBody), 
+            theme: 'grid', // Keeps grid lines
+            styles: { 
+                fontSize: settings.fontSize, 
+                cellPadding: settings.cellPadding, 
+                lineColor: [0, 0, 0],       // Black Lines
+                lineWidth: 0.1,             // Thinner lines
+                textColor: [0, 0, 0]        // Black Text Default
             },
-            columnStyles: {
-                0: { cellWidth: 15, halign: 'center' }, // Sem
+             // Remove headStyles as we style the block header directly in 'head' content
+            bodyStyles: { 
+                 fillColor: [255, 255, 255], // Ensure body background is white
+                 lineWidth: 0.1
+            },
+            columnStyles: { // Keep column styles for alignment/width
+                0: { cellWidth: 40 }, // Branch/Sem/Spec column
                 1: { cellWidth: 15, halign: 'center' }, // Count
-                2: { cellWidth: 35 }, // Specialization
-                3: { cellWidth: 'auto'} // Seat Number (auto width)
+                2: { cellWidth: 'auto'} // Seat Number
             },
             didParseCell: (data) => {
-                 // Style the Column Header row differently (it's the first row in the body array)
+                 // Style the Column Header row 
                  if (data.row.index === 0 && data.section === 'body') {
                      data.cell.styles.fontStyle = 'bold';
-                     data.cell.styles.fillColor = [240, 240, 240];
+                     data.cell.styles.fillColor = [240, 240, 240]; // Light Grey Fill
+                     data.cell.styles.textColor = [0, 0, 0];       // Black Text
                      data.cell.styles.halign = 'center';
+                     data.cell.styles.lineWidth = 0.2; // Match header line width
                  }
                 // Style the Total row
-                 if (data.row.index === tableBody.length && data.section === 'body') { // Last row is the total row
-                     data.cell.styles.fillColor = [230, 230, 230];
+                 if (data.row.index === tableBody.length && data.section === 'body') { 
+                     data.cell.styles.fillColor = [240, 240, 240]; // Light Grey Fill
                      data.cell.styles.fontStyle = 'bold';
+                     data.cell.styles.textColor = [0, 0, 0];       // Black Text
+                     data.cell.styles.lineWidth = 0.2;
                      if (data.column.index === 0) data.cell.styles.halign = 'right';
                      if (data.column.index === 1) data.cell.styles.halign = 'center';
                  }
             }
         });
-        startY = doc.autoTable.previous.finalY + 8; // Add gap before next block
+        currentY = doc.autoTable.previous.finalY + settings.verticalGap; // Use dynamic gap
+        // --- END THEME/CONTENT CHANGE ---
     }
 
 
@@ -1604,7 +1665,7 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
 }
 
 
-// --- UPDATED --- Export Master Arrangement to Excel (New Format - Based on Image)
+// --- THEME/CONTENT CHANGE --- Export Master Arrangement to Excel (New Format - Based on Image)
 function exportMasterArrangementToExcel(selectedPhaseTimes) {
      if (!selectedPhaseTimes || selectedPhaseTimes.length === 0) {
         notify('Please select at least one phase time.', 'error');
@@ -1681,7 +1742,7 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
         return acc;
     }, {});
 
-     // --- FIX BUG #2: Correct Regex for sorting ---
+    // --- FIX BUG #2: Correct Regex for sorting ---
      const sortedBlockGroupKeys = Object.keys(blocksGrouped).sort((a, b) => {
          const [, blockA, roomA] = a.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
          const [, blockB, roomB] = b.match(/Block (\S+) \((.*)\)/) || []; // Corrected Regex
@@ -1689,7 +1750,7 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
          if (roomCompare !== 0) return roomCompare;
          return (blockA || '').localeCompare(blockB || '', undefined, { numeric: true });
      });
-     // --- END FIX ---
+    // --- END FIX ---
 
 
     // Process each block group
@@ -1697,28 +1758,28 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
         const blockGroupData = blocksGrouped[blockKey];
         const blockHeader = `Block: ${blockGroupData.blockNo} (Room: ${blockGroupData.roomName})`;
 
-        // Add Block Header Row - Merged across 4 columns
-        sheetData.push([blockHeader, null, null, null]);
-        merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 3 } }); // Merge A to D
+        // --- THEME/CONTENT CHANGE: Match PDF changes ---
+        // Add Block Header Row - Merged across 3 columns
+        sheetData.push([blockHeader, null, null]);
+        merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 2 } }); // Merge A to C
         currentRow++;
 
         // Add Column Headers
-        sheetData.push(['Sem', 'Count', 'Specialization', 'Seat Number']);
+        sheetData.push(['Branch / Sem / Spec', 'Count', 'Seat Number']);
         currentRow++;
 
         // Add Data Rows for each entry in the group
         blockGroupData.entries.forEach(entry => {
-             let specDisplay = `${entry.subjectData.Semester}`;
+             let branchInfo = `${entry.subjectData.Branch} ${entry.subjectData.Semester}`;
              if(entry.specialization && entry.specialization !== 'ALL COURSES') {
-                 specDisplay += ` ${entry.specialization}`;
+                 branchInfo += ` (${entry.specialization})`;
              }
              if (entry.isDetained) {
-                 specDisplay += ' (Detained)';
+                 branchInfo += ' (Detained)';
              }
             sheetData.push([
-                entry.subjectData.Semester,
+                branchInfo,
                 entry.studentCount,
-                specDisplay,
                 entry.seatRange
             ]);
             currentRow++;
@@ -1726,8 +1787,9 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
 
          // Add Total Row
          const blockTotalStudents = blockGroupData.entries.reduce((sum, entry) => sum + parseInt(entry.studentCount || 0), 0);
-         sheetData.push(['Total:', blockTotalStudents, null, null]); // Total in second column
+         sheetData.push(['Total:', blockTotalStudents, null]); // Total in second column
          currentRow++;
+        // --- END THEME/CONTENT CHANGE ---
 
         // Add Blank Row Spacer
         sheetData.push([]); currentRow++;
@@ -1738,13 +1800,14 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
     ws['!merges'] = merges;
 
      // Set column widths
-     ws['!cols'] = [ { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 50 } ]; // Adjust widths as needed
+     ws['!cols'] = [ { wch: 30 }, { wch: 10 }, { wch: 50 } ]; // Changed widths
 
 
     XLSX.utils.book_append_sheet(wb, ws, 'Master Arrangement');
     XLSX.writeFile(wb, `${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_').replace(/[:\s]/g,'')}.xlsx`);
 
 }
+// --- END THEME/CONTENT CHANGE ---
 
 
 // --- SCHEDULING LOGIC (New & Refactored) ---
@@ -1998,7 +2061,7 @@ function handleGlobalClick(e) {
     }
      // --- NEW --- Listener for Master Arrangement button
      if (e.target.closest('#download-master-arrangement')) {
-        showMasterArrangementModal(); // Call the new modal function (defined in app-ui.js)
+        showMasterArrangementModal(); // Call the new modal function
     }
      // --- NEW --- Listener for phase-wise Excel download
      const downloadPhaseExcelBtn = e.target.closest('.download-phase-excel-btn');
@@ -2078,8 +2141,8 @@ function handleGlobalChange(e) {
      // --- MODIFIED --- Also check if inside edit-block-form
     if (e.target.dataset.action === 'update-specializations' && (e.target.closest('.add-block-form') || e.target.closest('#edit-block-form'))) {
         const selectedOption = e.target.options[e.target.selectedIndex];
-        const subjectId = selectedOption ? selectedOption.dataset.subjectId : null; // Check if selectedOption exists
-        handleSubjectChange(subjectId, e.target.closest('form')); // Ensure handleSubjectChange exists in app-ui.js
+        const subjectId = selectedOption.dataset.subjectId;
+        handleSubjectChange(subjectId, e.target.closest('form'));
     }
 
 }
@@ -2240,140 +2303,3 @@ function toggleSplitButton(menuId) {
     }
 }
 
-// --- FIX BUG #3: REMOVE DUPLICATE FUNCTION DEFINITION ---
-// The showMasterArrangementModal function previously defined here has been removed.
-// The correct version exists in app-ui.js.
-// --- END FIX ---
-
-function init() {
-    loadState(); // Load state first
-    $('#university-name').textContent = UNIVERSITY_NAME;
-    $('#school-name').textContent = SCHOOL_NAME;
-    if (!state.examName) {
-        updateExamName();
-    }
-    render();
-
-    const appContainer = $('#app-container');
-    appContainer.addEventListener('click', handleGlobalClick);
-    appContainer.addEventListener('change', handleGlobalChange);
-    appContainer.addEventListener('submit', handleGlobalSubmit);
-
-    const loadInput = document.getElementById('load-from-file-input');
-    loadInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const loadedState = JSON.parse(e.target.result);
-                if (loadedState && loadedState.examDetails && loadedState.currentStep) {
-                    showConfirmationModal(
-                        'Load Data from File?',
-                        'This will overwrite all current data. Are you sure you want to continue?',
-                        () => {
-                            Object.assign(state, loadedState);
-                            if (state.scheduler && state.scheduler.calendarDate) {
-                                state.scheduler.calendarDate = new Date(state.scheduler.calendarDate);
-                            }
-                            saveState();
-                            notify('Data loaded successfully!', 'success');
-                            render();
-                        }
-                    );
-                } else {
-                    throw new Error('Invalid file format.');
-                }
-            } catch (error) {
-                console.error('Failed to load state from file:', error);
-                notify('Could not load data. The file may be corrupt or invalid.', 'error');
-            } finally {
-                event.target.value = '';
-            }
-        };
-        reader.readAsText(file);
-    });
-
-    appContainer.addEventListener('input', e => {
-        if (e.target.id === 'exam-name') {
-            state.examName = e.target.value;
-            saveState();
-        } else if (e.target.id === 'scheduler-search') {
-            state.scheduler.searchTerm = e.target.value;
-            const container = $('#unscheduled-list');
-            if (container) container.innerHTML = renderUnscheduledSubjectsList();
-        } else if (e.target.id === 'faculty-search') {
-            state.facultySearchTerm = e.target.value;
-            const container = $('#faculty-list');
-            if (container) container.innerHTML = renderFacultyList();
-        }
-    });
-
-    // Drag and Drop listeners
-    appContainer.addEventListener('dragstart', e => {
-        const draggable = e.target.closest('.draggable');
-        if (draggable) {
-            state.draggedItemId = draggable.dataset.id;
-            state.draggedItemType = draggable.dataset.type;
-            e.target.style.opacity = '0.5';
-        }
-    });
-    appContainer.addEventListener('dragend', e => {
-        const draggable = e.target.closest('.draggable');
-        if (draggable) {
-            e.target.style.opacity = '1';
-        }
-        state.draggedItemId = null;
-        state.draggedItemType = null;
-    });
-    appContainer.addEventListener('dragover', e => {
-        const dropZone = e.target.closest('.drop-zone');
-        if (dropZone && dropZone.dataset.type === state.draggedItemType) {
-            e.preventDefault();
-            dropZone.classList.add('drop-zone-active');
-        }
-    });
-    appContainer.addEventListener('dragleave', e => {
-        const dropZone = e.target.closest('.drop-zone');
-        if (dropZone) {
-            dropZone.classList.remove('drop-zone-active');
-        }
-    });
-    appContainer.addEventListener('drop', e => {
-        e.preventDefault();
-        const dropZone = e.target.closest('.drop-zone');
-        if (!dropZone || !state.draggedItemId || dropZone.dataset.type !== state.draggedItemType) return;
-
-        dropZone.classList.remove('drop-zone-active');
-
-        dropZone.classList.add('drop-zone-success');
-        setTimeout(() => {
-            dropZone.classList.remove('drop-zone-success');
-        }, 500);
-
-
-        if (state.draggedItemType === 'subject') {
-            const { date, phaseId } = dropZone.dataset;
-            addSubjectToPhase(state.draggedItemId, date, phaseId);
-        } else if (state.draggedItemType === 'faculty') {
-            const { phaseKey, room } = dropZone.dataset;
-            const faculty = state.facultyMaster.find(f => f.id === state.draggedItemId);
-            if (!faculty) return;
-
-            const assignedInPhase = Object.values(state.dutyAssignments[phaseKey] || {}).flat();
-            if (assignedInPhase.includes(faculty.name)) {
-                notify(`${faculty.name} is already assigned a duty in this time slot.`, 'error');
-                return;
-            }
-            if (!state.dutyAssignments[phaseKey]) state.dutyAssignments[phaseKey] = {};
-            if (!state.dutyAssignments[phaseKey][room]) state.dutyAssignments[phaseKey][room] = [];
-            if (!state.dutyAssignments[phaseKey][room].includes(faculty.name)) {
-                state.dutyAssignments[phaseKey][room].push(faculty.name);
-            }
-            render();
-            saveState();
-        }
-    });
-}
-window.addEventListener('DOMContentLoaded', init);

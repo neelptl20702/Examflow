@@ -12,7 +12,9 @@ const ICONS = {
     Edit: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
     X: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
     XClose: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-    Users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
+    Users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    // --- NEW ---
+    Excel: `<svg class="h-5 w-5 text-green-600" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/><line x1="12" y1="9" x2="10" y2="9"/></svg>`
 };
 
 // --- UI UTILITIES ---
@@ -216,8 +218,7 @@ function renderStep3_Scheduler() {
                             <div id="timetable-menu" class="split-button-menu absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-30">
                                 <div class="py-1" role="menu" aria-orientation="vertical">
                                     <a href="#" id="export-timetable-excel" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
-                                        <!-- Excel Icon -->
-                                        <svg class="h-5 w-5 text-green-600" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/><line x1="12" y1="9" x2="10" y2="9"/></svg>
+                                        ${ICONS.Excel} <!-- Changed to Excel Icon -->
                                         Export as Excel
                                     </a>
                                 </div>
@@ -436,6 +437,10 @@ function renderStep4_AllotmentAndRooms() {
                                             ${ICONS.Paste} Paste Seating Plan
                                         </button>
                                    ` : ''}
+                                   <!-- --- NEW --- -->
+                                   <button class="download-phase-excel-btn text-sm font-semibold text-green-700 hover:underline flex items-center gap-1.5" data-phase-key="${phaseKey}">
+                                       ${ICONS.Excel} Export to Excel
+                                   </button>
                                 </div>
                             </div>
 
@@ -502,9 +507,25 @@ function renderStep4_AllotmentAndRooms() {
                             <h2 class="text-3xl font-bold text-gray-800">Allotment & Rooms</h2>
                             <p class="text-gray-500 mt-1">Manage rooms and create seating blocks for each exam session.</p>
                         </div>
-                         <button id="download-seating-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm mt-4 md:mt-0">
-                            ${ICONS.Printer} Download Seating PDF
-                        </button>
+                         <!-- --- MODIFIED BUTTON GROUP --- -->
+                         <div class="flex flex-col md:flex-row items-center gap-3 mt-4 md:mt-0">
+                             <!-- NEW: Import from Excel Button -->
+                             <label for="import-seating-plan-excel" class="bg-white text-blue-600 border border-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 cursor-pointer flex items-center gap-2 text-sm font-semibold">
+                                 ${ICONS.Upload} Import Plan (Excel)
+                             </label>
+                             <input type="file" id="import-seating-plan-excel" class="hidden" accept=".csv, .xlsx">
+
+                             <!-- NEW: Download Empty Template Button -->
+                             <button id="download-empty-template-pdf" class="bg-white text-gray-700 border border-gray-400 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm">
+                                Download Empty Template
+                             </button>
+
+                             <!-- Existing Button (Renamed for clarity) -->
+                             <button id="download-seating-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm">
+                                 ${ICONS.Printer} Download Filled PDF
+                             </button>
+                         </div>
+                         <!-- --- END MODIFIED BUTTON GROUP --- -->
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div class="lg:col-span-4">
@@ -594,7 +615,7 @@ function renderAllotmentBlocksForPhase(phaseKey) {
         roomBlocks.forEach(block => {
             const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
             totalStudentsInRoom += parseInt(block.studentCount || 0);
-            let subjectText = 'N/A';
+            let subjectText = '<span class="text-red-600 font-semibold">N/A - Assign Subject</span>'; // Default text for empty blocks
             if (subject) {
                 subjectText = `${subject.SubjectName} (${subject.Branch})`;
                 if (block.specialization) {
@@ -707,8 +728,7 @@ function renderStep5_DutyAssignment() {
                                 <div id="duty-sheet-menu" class="split-button-menu absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-30">
                                     <div class="py-1" role="menu" aria-orientation="vertical">
                                         <a href="#" id="export-duty-sheet-excel" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" role="menuitem">
-                                            <!-- Excel Icon -->
-                                            <svg class="h-5 w-5 text-green-600" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/><line x1="12" y1="9" x2="10" y2="9"/></svg>
+                                            ${ICONS.Excel} <!-- Changed to Excel Icon -->
                                             Export as Excel
                                         </a>
                                     </div>
@@ -1365,11 +1385,22 @@ function showEditBlockModal(phaseKey, blockId) {
     const [date, phaseId] = phaseKey.split('|');
     const phase = state.schedule[date]?.find(p => p.id === phaseId);
 
-    // Find the specific instance this block was created from.
-    // This is tricky if instanceIds aren't stored. A block is defined by its subjectId and isDetained status.
+    // Get subjects available for THIS phase
     const scheduledItemsInPhase = phase.subjects;
 
     const subjectOfBlock = state.subjectsMasterList.find(s => s.id == block.subjectId);
+
+    // --- MODIFIED --- Build subject options for the modal
+    let subjectOptionsHtml = '<option value="">-- Select Subject --</option>';
+    scheduledItemsInPhase.forEach(item => {
+        const s = state.subjectsMasterList.find(sub => sub.id === item.subjectId);
+        if (!s) return '';
+        const studentTypeLabel = item.studentType === 'detained' ? ' (Detained)' : '';
+        const optionText = `${s.SubjectName} (${s.Branch} - ${s.Semester})${studentTypeLabel}`;
+        // Pre-select if this block is already assigned this subject instance
+        const isSelected = block.subjectId === item.subjectId && block.isDetained === (item.studentType === 'detained');
+        subjectOptionsHtml += `<option value="${item.instanceId}" data-subject-id="${s.id}" ${isSelected ? 'selected' : ''}>${optionText}</option>`;
+    });
 
     let specializationHtml = '';
     if (subjectOfBlock && subjectOfBlock.Specialization && subjectOfBlock.Specialization.length > 0) {
@@ -1387,9 +1418,13 @@ function showEditBlockModal(phaseKey, blockId) {
     const content = `
                 <form id="edit-block-form" data-phase-key="${phaseKey}" data-block-id="${blockId}" class="p-6 space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                         <div class="md:col-span-12 p-3 bg-gray-100 rounded-md">
-                             <label class="text-xs font-medium text-gray-600">Subject</label>
-                             <p class="font-semibold text-gray-800">${subjectOfBlock.SubjectName}${block.isDetained ? ' (Detained)' : ''}</p>
+                         <!-- --- MODIFIED --- Subject selection for blank blocks -->
+                         <div class="md:col-span-12">
+                             <label class="text-sm font-medium text-gray-700">Subject</label>
+                             <select name="scheduledInstanceId" data-action="update-specializations" class="block w-full p-2 border rounded-md text-sm mt-1 ${block.subjectId ? 'bg-gray-100' : ''}" ${block.subjectId ? 'disabled' : ''}>
+                                 ${subjectOptionsHtml}
+                             </select>
+                             ${block.subjectId ? '<p class="text-xs text-gray-500 mt-1">Subject cannot be changed after initial assignment. Delete and re-add block if needed.</p>' : ''}
                          </div>
                         ${specializationHtml}
                         <div class="md:col-span-6">
@@ -1476,3 +1511,4 @@ function renderModal() {
         });
     }
 }
+

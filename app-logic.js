@@ -899,6 +899,150 @@ async function generateSeatingArrangementPDF(phaseKeyOrAll) {
     doc.save(fileName);
 }
 
+// --- NEW ---
+async function generateEmptySeatingPDF() {
+    if (!state.copiedAllotment || !state.copiedAllotment.blocks || state.copiedAllotment.blocks.length === 0) {
+        notify("Please click 'Copy Seating Plan' on the layout you wish to use as a template first.", 'warning');
+        return;
+    }
+
+    notify('Generating Empty Template PDF...', 'success');
+    const blocksToPrint = state.copiedAllotment.blocks;
+    const bannerDataURL = await getImageDataUrlFromDOM('site-banner-img');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+    addPdfHeader(doc, bannerDataURL, state, 'SOCSET Master Seating Template');
+    let startY = 32;
+
+    const blocksByRoom = blocksToPrint.reduce((acc, block) => {
+        if (!acc[block.roomName]) acc[block.roomName] = [];
+        acc[block.roomName].push(block);
+        return acc;
+    }, {});
+
+    const sortedRooms = Object.keys(blocksByRoom).sort((a, b) => {
+        const blockA = (blocksByRoom[a][0].blockNo || '0').toString();
+        const blockB = (blocksByRoom[b][0].blockNo || '0').toString();
+        return blockA.localeCompare(blockB, undefined, { numeric: true });
+    });
+
+    for (const roomName of sortedRooms) {
+        const roomBlocks = blocksByRoom[roomName];
+
+        const body = roomBlocks.map(block => [
+            block.blockNo,
+            block.seatRange,
+            block.studentCount,
+            '' // Empty column for subject
+        ]);
+
+        const tableHeight = (body.length + 2) * 10; // Estimate height
+        if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
+            doc.addPage();
+            startY = 20;
+            addPdfHeader(doc, bannerDataURL, state, 'SOCSET Master Seating Template (Contd.)');
+        }
+
+        doc.autoTable({
+            startY: startY,
+            head: [[{ content: `Room: ${roomName}`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: [0, 0, 0], lineColor: [0, 0, 0] } }]],
+            body: [
+                ['Block', 'Seat Range', 'Students', 'Subject / Branch']
+            ].concat(body),
+            theme: 'grid',
+            styles: {
+                cellPadding: 2,
+                fontSize: 10,
+                lineColor: [0, 0, 0],
+                textColor: [0, 0, 0]
+            },
+            headStyles: {
+                fillColor: [240, 240, 240],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+                lineWidth: 0.1,
+            },
+            bodyStyles: {
+                lineWidth: 0.1
+            },
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' },
+                1: { cellWidth: 40 },
+                2: { cellWidth: 20, halign: 'center' },
+                3: { cellWidth: 'auto' } // Subject column
+            },
+            didParseCell: function (data) {
+                if (data.row.index === 0 && data.section === 'body') {
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        });
+        startY = doc.autoTable.previous.finalY + 5;
+    }
+
+    doc.save(`${state.examName}_Empty_Seating_Template.pdf`);
+}
+
+// --- NEW ---
+function exportPhaseToExcel(phaseKey) {
+    const blocks = state.allotment[phaseKey];
+    if (!blocks || blocks.length === 0) {
+        notify('No blocks created for this session to export.', 'error');
+        return;
+    }
+
+    notify('Generating Excel file...', 'success');
+
+    const sheetData = [
+        ['Room', 'Block No.', 'Subject', 'Branch', 'Semester', 'Specialization', 'Detained', 'Seat Range', 'Students']
+    ];
+
+    // Sort blocks by Room, then by BlockNo
+    const sortedBlocks = [...blocks].sort((a, b) => {
+        if (a.roomName !== b.roomName) {
+            return a.roomName.localeCompare(b.roomName);
+        }
+        return (a.blockNo || '').localeCompare(b.blockNo || '', undefined, { numeric: true });
+    });
+
+    for (const block of sortedBlocks) {
+        const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
+        const row = [
+            block.roomName,
+            block.blockNo,
+            subject ? subject.SubjectName : 'N/A',
+            subject ? subject.Branch : 'N/A',
+            subject ? subject.Semester : 'N/A',
+            block.specialization || '',
+            block.isDetained ? 'Yes' : 'No',
+            block.seatRange,
+            block.studentCount
+        ];
+        sheetData.push(row);
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Set column widths
+    ws['!cols'] = [
+        { wch: 20 }, // Room
+        { wch: 10 }, // Block No.
+        { wch: 40 }, // Subject
+        { wch: 15 }, // Branch
+        { wch: 10 }, // Semester
+        { wch: 15 }, // Specialization
+        { wch: 10 }, // Detained
+        { wch: 20 }, // Seat Range
+        { wch: 10 }  // Students
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Seating Plan');
+    XLSX.writeFile(wb, `Seating_Plan_${phaseKey.replace('|', '_')}.xlsx`);
+}
+
+
 async function generateDutySheetPDF(specificPhaseKey = null) {
     const sortedPhaseKeys = Object.keys(state.dutyAssignments).sort();
     const finalPhaseKeys = specificPhaseKey ? [specificPhaseKey] : sortedPhaseKeys;
@@ -1228,7 +1372,7 @@ async function generateAnswerSheetPDF() {
             const tableHeight = (tableData.length + 1) * 8 + 10; // Estimated height
             if (startY + tableHeight > doc.internal.pageSize.getHeight() - 15) {
                 doc.addPage();
-                addPdfHeader(doc, bannerDataURL, state, 'Answer Sheet Issue Sheet');
+                addPdfHeader(doc, bannerDataURL, state, 'AnswerSheet Issue Sheet');
                 startY = 35;
             }
 
@@ -1530,49 +1674,32 @@ function handleGlobalClick(e) {
         notify(`Copied ${sourceBlocks.length} blocks. Go to another session and click 'Paste'.`, 'success');
         render(); // Re-render to show "Copied!" status
     }
+    
+    // --- MODIFIED ---
     const pasteBlocksBtn = e.target.closest('.paste-blocks-btn');
     if (pasteBlocksBtn && state.copiedAllotment) {
         const targetKey = pasteBlocksBtn.dataset.targetKey;
         const sourceBlocks = state.copiedAllotment.blocks;
-        const [targetDate, targetPhaseId] = targetKey.split('|');
-        const targetPhase = state.schedule[targetDate]?.find(p => p.id === targetPhaseId);
-        if (!targetPhase) return;
-
-        const targetSubjectIds = [...new Set(targetPhase.subjects.map(item => item.subjectId))];
-        const targetSubjects = targetSubjectIds.map(id => state.subjectsMasterList.find(s => s.id === id)).filter(Boolean);
-
-        const newBlocks = [];
-        let unmappedCount = 0;
-        sourceBlocks.forEach(sourceBlock => {
-            const sourceSubject = state.subjectsMasterList.find(s => s.id == sourceBlock.subjectId);
-            if (!sourceSubject) {
-                unmappedCount++;
-                return;
-            }
-            const bestMatch = targetSubjects.find(targetSubject => {
-                const isSameStream = targetSubject.Branch === sourceSubject.Branch && targetSubject.Semester === sourceSubject.Semester;
-                if (!isSameStream) return false;
-                if (sourceBlock.specialization) {
-                    return targetSubject.Specialization && targetSubject.Specialization.includes(sourceBlock.specialization);
-                }
-                return true;
-            });
-            if (bestMatch) {
-                newBlocks.push({
-                    ...sourceBlock,
-                    id: `block_${Date.now()}_${Math.random()}`,
-                    subjectId: bestMatch.id,
-                });
-            } else {
-                unmappedCount++;
-            }
+        
+        // New logic: Paste layout WITHOUT subjects
+        const newBlocks = sourceBlocks.map(sourceBlock => {
+            return {
+                // Copy only layout info
+                id: `block_${Date.now()}_${Math.random()}`,
+                roomName: sourceBlock.roomName,
+                seatRange: sourceBlock.seatRange,
+                blockNo: sourceBlock.blockNo,
+                studentCount: sourceBlock.studentCount,
+                
+                // Explicitly set subject info to null
+                subjectId: null,
+                specialization: null,
+                isDetained: false
+            };
         });
+
         state.allotment[targetKey] = newBlocks;
-        if (unmappedCount > 0) {
-            notify(`${newBlocks.length} blocks pasted. ${unmappedCount} blocks could not be matched to a subject and were skipped.`, 'warning');
-        } else {
-            notify(`Seating plan successfully pasted with updated subjects.`, 'success');
-        }
+        notify(`Plan layout pasted with ${newBlocks.length} blocks. Please use the 'Edit' button on each block to assign subjects.`, 'success');
         render();
         saveState();
     }
@@ -1581,6 +1708,19 @@ function handleGlobalClick(e) {
         showSeatingPdfOptionsModal();
     }
 
+    // --- NEW ---
+    if (e.target.closest('#download-empty-template-pdf')) {
+        generateEmptySeatingPDF();
+    }
+
+    // --- NEW ---
+    // Note: You must add buttons with class="download-phase-excel-btn" and data-phase-key="..." in app-ui.js
+    const downloadExcelBtn = e.target.closest('.download-phase-excel-btn');
+    if (downloadExcelBtn) {
+        const phaseKey = downloadExcelBtn.dataset.phaseKey;
+        exportPhaseToExcel(phaseKey);
+    }
+    
     if (e.target.closest('#preview-duty-pdf')) showDutySheetModal();
 
     if (e.target.closest('#export-duty-sheet-excel')) {
@@ -1628,6 +1768,18 @@ function handleGlobalChange(e) {
     if (e.target.matches('#subject-file-upload')) { handleFileUpload(e.target.files[0], 'subject'); e.target.value = ''; }
     if (e.target.matches('#room-file-upload')) { handleFileUpload(e.target.files[0], 'room'); e.target.value = ''; }
     if (e.target.matches('#faculty-file-upload')) { handleFileUpload(e.target.files[0], 'faculty'); e.target.value = ''; }
+    
+    // --- NEW ---
+    // Note: You must add the input with id="import-seating-plan-excel" in app-ui.js
+    // This part is commented out as it requires a complex modal flow we didn't finalize.
+    // The "Copy/Paste" is the primary method for now.
+    /*
+    if (e.target.matches('#import-seating-plan-excel')) { 
+        handleFileUpload(e.target.files[0], 'seating-plan'); 
+        e.target.value = ''; 
+    }
+    */
+
     if (e.target.dataset.action === 'update-specializations') {
         const selectedOption = e.target.options[e.target.selectedIndex];
         const subjectId = selectedOption.dataset.subjectId;
@@ -1686,8 +1838,36 @@ function handleGlobalSubmit(e) {
         const formData = new FormData(e.target);
         const blockIndex = state.allotment[phaseKey].findIndex(b => b.id === blockId);
         if (blockIndex > -1) {
+            
+            // --- MODIFIED ---
+            // When editing, we must also grab the subject info if it's a blank block
+            const currentBlock = state.allotment[phaseKey][blockIndex];
+            let subjectId = currentBlock.subjectId;
+            let isDetained = currentBlock.isDetained;
+
+            // Check if we are editing a block that was pasted blank
+            if (!subjectId) {
+                const instanceId = formData.get('scheduledInstanceId'); // This field MUST be in the edit modal
+                if(instanceId) {
+                    let scheduledItem = null;
+                    for (const date in state.schedule) {
+                        for (const phase of state.schedule[date]) {
+                            const found = phase.subjects.find(item => item.instanceId === instanceId);
+                            if (found) { scheduledItem = found; break; }
+                        }
+                        if (scheduledItem) break;
+                    }
+                    if(scheduledItem) {
+                        subjectId = scheduledItem.subjectId;
+                        isDetained = scheduledItem.studentType === 'detained';
+                    }
+                }
+            }
+            
             state.allotment[phaseKey][blockIndex] = {
-                ...state.allotment[phaseKey][blockIndex],
+                ...currentBlock,
+                subjectId: subjectId, // Update subjectId
+                isDetained: isDetained, // Update isDetained
                 specialization: formData.get('specialization') || null,
                 roomName: formData.get('roomName'),
                 seatRange: formData.get('seatRange'),

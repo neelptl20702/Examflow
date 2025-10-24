@@ -1414,7 +1414,7 @@ async function generateLoadMatrixPDF() {
     doc.save(`${state.examName}_Load_Matrix.pdf`);
 }
 
-// --- UPDATED --- Generate Master Arrangement PDF (Simpler Format)
+// --- UPDATED --- Generate Master Arrangement PDF (New Format - Based on Image)
 async function generateMasterArrangementPDF(selectedPhaseTimes) {
     if (!selectedPhaseTimes || selectedPhaseTimes.length === 0) {
         notify('Please select at least one phase time.', 'error');
@@ -1484,57 +1484,119 @@ async function generateMasterArrangementPDF(selectedPhaseTimes) {
         return;
     }
 
-    // Prepare data for autoTable
-    const tableBody = allBlockEntries.map(entry => {
-        let branchSpec = `${entry.subjectData.Branch} - ${entry.subjectData.Semester}`;
-        if (entry.specialization && entry.specialization !== 'ALL COURSES') {
-            branchSpec += ` (${entry.specialization})`;
+    // Group sorted entries by Block Number + Room Name to handle page breaks correctly
+    const blocksGrouped = allBlockEntries.reduce((acc, entry) => {
+        const key = `Block ${entry.blockNo} (${entry.roomName})`;
+        if (!acc[key]) {
+            acc[key] = {
+                blockNo: entry.blockNo,
+                roomName: entry.roomName,
+                entries: []
+            };
         }
-        if (entry.isDetained) {
-            branchSpec += ' (Detained)';
-        }
-        return [
-            entry.roomName,
-            entry.blockNo,
-            branchSpec,
-            entry.seatRange, // The detailed string
-            entry.studentCount
-        ];
-    });
+        acc[key].entries.push(entry);
+        return acc;
+    }, {});
 
-    // Draw the table
-    doc.autoTable({
-        startY: startY,
-        head: [['Room', 'Block No.', 'Branch - Sem (Spec)', 'Seat Range', 'Students']],
-        body: tableBody,
-        theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.2 },
-        headStyles: {
-            fontStyle: 'bold',
-            fillColor: [220, 220, 220],
-            textColor: [0, 0, 0],
-            halign: 'center'
-        },
-        columnStyles: {
-            0: { cellWidth: 25 }, // Room
-            1: { cellWidth: 15, halign: 'center' }, // Block No.
-            2: { cellWidth: 40 }, // Branch-Spec
-            3: { cellWidth: 'auto' }, // Seat Range
-            4: { cellWidth: 18, halign: 'center' }  // Students
-        },
-        didDrawPage: function (data) {
-             // Add header again if new page is added by autoTable
-             if (data.pageNumber > 1) {
-                 addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle + " (Contd.)");
+     const sortedBlockGroupKeys = Object.keys(blocksGrouped).sort((a, b) => {
+         // Extract room and block for sorting
+         const [, blockA, roomA] = a.match(/Block (\S+) \(Room: (.*)\)/) || [];
+         const [, blockB, roomB] = b.match(/Block (\S+) \(Room: (.*)\)/) || [];
+         const roomCompare = roomA.localeCompare(roomB);
+         if (roomCompare !== 0) return roomCompare;
+         return (blockA || '').localeCompare(blockB || '', undefined, { numeric: true });
+     });
+
+
+    for (const blockKey of sortedBlockGroupKeys) {
+        const blockGroupData = blocksGrouped[blockKey];
+
+        // Prepare body data for the table specific to this block group
+        const tableBody = blockGroupData.entries.map(entry => {
+            let specDisplay = `${entry.subjectData.Semester}`;
+             // Only add specialization if it's not 'ALL COURSES'
+            if(entry.specialization && entry.specialization !== 'ALL COURSES') {
+                specDisplay += ` ${entry.specialization}`;
+            }
+             if (entry.isDetained) {
+                 specDisplay += ' (Detained)';
              }
-         }
-    });
+            return [
+                entry.subjectData.Semester, // Sem column
+                { content: entry.studentCount, styles: { fontStyle: 'bold', halign: 'center' } }, // Count column
+                specDisplay, // Specialization column
+                entry.seatRange // Seat Number column
+            ];
+        });
+
+        // Add a row for total students in this block group
+         const blockTotalStudents = blockGroupData.entries.reduce((sum, entry) => sum + parseInt(entry.studentCount || 0), 0);
+         tableBody.push([
+             { content: `Total:`, colSpan: 1, styles: { halign: 'right', fontStyle: 'bold'} },
+             { content: blockTotalStudents, styles: { fontStyle: 'bold', halign: 'center' } },
+             { content: '', colSpan: 2} // Empty cells to fill row
+         ]);
+
+        // Estimate height for page break check
+        const estimatedHeight = 10 + (tableBody.length * 7); // Header + Rows
+        if (startY + estimatedHeight > doc.internal.pageSize.getHeight() - 15) {
+            doc.addPage();
+            addPdfHeader(doc, bannerDataURL, state, 'Master Seating Arrangement', subTitle + " (Contd.)");
+            startY = 32;
+        }
+
+        // Draw the table for this block
+        doc.autoTable({
+            startY: startY,
+            // Block Header Row
+            head: [[{ content: `Block: ${blockGroupData.blockNo} (Room: ${blockGroupData.roomName})`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: [0, 0, 0] } }]],
+            // Column Headers
+            body: [
+                 ['Sem', 'Count', 'Specialization', 'Seat Number'] // Your desired columns
+            ].concat(tableBody), // Add the data rows
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 1.5, lineColor: [0, 0, 0], lineWidth: 0.2 },
+             headStyles: { // Styles for the Block Header row
+                 fontStyle: 'bold',
+                 fillColor: [220, 220, 220],
+                 textColor: [0, 0, 0],
+                 fontSize: 10,
+                 cellPadding: 2,
+             },
+            bodyStyles: { // Styles for data rows + column header row
+                 // fillColor: [255, 255, 255] // Ensure body rows have white background if needed
+            },
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' }, // Sem
+                1: { cellWidth: 15, halign: 'center' }, // Count
+                2: { cellWidth: 35 }, // Specialization
+                3: { cellWidth: 'auto'} // Seat Number (auto width)
+            },
+            didParseCell: (data) => {
+                 // Style the Column Header row differently (it's the first row in the body array)
+                 if (data.row.index === 0 && data.section === 'body') {
+                     data.cell.styles.fontStyle = 'bold';
+                     data.cell.styles.fillColor = [240, 240, 240];
+                     data.cell.styles.halign = 'center';
+                 }
+                // Style the Total row
+                 if (data.row.index === tableBody.length && data.section === 'body') { // Last row is the total row
+                     data.cell.styles.fillColor = [230, 230, 230];
+                     data.cell.styles.fontStyle = 'bold';
+                     if (data.column.index === 0) data.cell.styles.halign = 'right';
+                     if (data.column.index === 1) data.cell.styles.halign = 'center';
+                 }
+            }
+        });
+        startY = doc.autoTable.previous.finalY + 8; // Add gap before next block
+    }
+
 
     doc.save(`${state.examName}_Master_Arrangement_${selectedPhaseTimes.join('_').replace(/[:\s]/g,'')}.pdf`);
 }
 
 
-// --- UPDATED --- Export Master Arrangement to Excel (Simpler Format)
+// --- UPDATED --- Export Master Arrangement to Excel (New Format - Based on Image)
 function exportMasterArrangementToExcel(selectedPhaseTimes) {
      if (!selectedPhaseTimes || selectedPhaseTimes.length === 0) {
         notify('Please select at least one phase time.', 'error');
@@ -1544,7 +1606,8 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
 
     const wb = XLSX.utils.book_new();
     const sheetData = [];
-    let currentRow = 0; // Track the current row index
+    const merges = [];
+    let currentRow = 0; // Track the current row index for merges
 
     // Add Header Info
     sheetData.push([`Exam: ${state.examName}`]); currentRow++;
@@ -1596,34 +1659,76 @@ function exportMasterArrangementToExcel(selectedPhaseTimes) {
          return;
      }
 
-    // Add Column Headers
-    sheetData.push(['Room', 'Block No.', 'Branch - Sem (Spec)', 'Seat Range', 'Students']);
-    currentRow++;
+     // Group sorted entries by Block Number + Room Name
+    const blocksGrouped = allBlockEntries.reduce((acc, entry) => {
+        const key = `Block ${entry.blockNo} (${entry.roomName})`;
+        if (!acc[key]) {
+            acc[key] = {
+                blockNo: entry.blockNo,
+                roomName: entry.roomName,
+                entries: []
+            };
+        }
+        acc[key].entries.push(entry);
+        return acc;
+    }, {});
 
-    // Add Data Rows
-    allBlockEntries.forEach(entry => {
-        let branchSpec = `${entry.subjectData.Branch} - ${entry.subjectData.Semester}`;
-        if (entry.specialization && entry.specialization !== 'ALL COURSES') {
-            branchSpec += ` (${entry.specialization})`;
-        }
-        if (entry.isDetained) {
-            branchSpec += ' (Detained)';
-        }
-        sheetData.push([
-            entry.roomName,
-            entry.blockNo,
-            branchSpec,
-            entry.seatRange, // The detailed string
-            entry.studentCount
-        ]);
+     const sortedBlockGroupKeys = Object.keys(blocksGrouped).sort((a, b) => {
+         const [, blockA, roomA] = a.match(/Block (\S+) \(Room: (.*)\)/) || [];
+         const [, blockB, roomB] = b.match(/Block (\S+) \(Room: (.*)\)/) || [];
+         const roomCompare = roomA.localeCompare(roomB);
+         if (roomCompare !== 0) return roomCompare;
+         return (blockA || '').localeCompare(blockB || '', undefined, { numeric: true });
+     });
+
+
+    // Process each block group
+    for (const blockKey of sortedBlockGroupKeys) {
+        const blockGroupData = blocksGrouped[blockKey];
+        const blockHeader = `Block: ${blockGroupData.blockNo} (Room: ${blockGroupData.roomName})`;
+
+        // Add Block Header Row - Merged across 4 columns
+        sheetData.push([blockHeader, null, null, null]);
+        merges.push({ s: { r: currentRow, c: 0 }, e: { r: currentRow, c: 3 } }); // Merge A to D
         currentRow++;
-    });
+
+        // Add Column Headers
+        sheetData.push(['Sem', 'Count', 'Specialization', 'Seat Number']);
+        currentRow++;
+
+        // Add Data Rows for each entry in the group
+        blockGroupData.entries.forEach(entry => {
+             let specDisplay = `${entry.subjectData.Semester}`;
+             if(entry.specialization && entry.specialization !== 'ALL COURSES') {
+                 specDisplay += ` ${entry.specialization}`;
+             }
+             if (entry.isDetained) {
+                 specDisplay += ' (Detained)';
+             }
+            sheetData.push([
+                entry.subjectData.Semester,
+                entry.studentCount,
+                specDisplay,
+                entry.seatRange
+            ]);
+            currentRow++;
+        });
+
+         // Add Total Row
+         const blockTotalStudents = blockGroupData.entries.reduce((sum, entry) => sum + parseInt(entry.studentCount || 0), 0);
+         sheetData.push(['Total:', blockTotalStudents, null, null]); // Total in second column
+         currentRow++;
+
+        // Add Blank Row Spacer
+        sheetData.push([]); currentRow++;
+    }
 
 
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!merges'] = merges;
 
      // Set column widths
-     ws['!cols'] = [ { wch: 20 }, { wch: 10 }, { wch: 35 }, { wch: 50 }, { wch: 10 } ];
+     ws['!cols'] = [ { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 50 } ]; // Adjust widths as needed
 
 
     XLSX.utils.book_append_sheet(wb, ws, 'Master Arrangement');
@@ -2125,6 +2230,95 @@ function toggleSplitButton(menuId) {
     }
 }
 
+// --- ADDED - showMasterArrangementModal function ---
+// This function needs to be defined so it can be called.
+function showMasterArrangementModal() {
+    // Get unique phase times from schedule
+    const phaseTimes = new Set();
+    Object.values(state.schedule).flat().forEach(phase => {
+        phaseTimes.add(`${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`);
+    });
+    const sortedPhaseTimes = [...phaseTimes].sort();
+
+    if (sortedPhaseTimes.length === 0) {
+        notify('No exam phases scheduled yet. Cannot generate master arrangement.', 'warning');
+        return;
+    }
+
+    const content = `
+        <form id="master-arrangement-options-form" class="p-6 space-y-4">
+            <p class="text-sm text-gray-600">Select the phase time(s) to include in the master arrangement. The report will include all scheduled days for the selected times.</p>
+            <div>
+                <label class="font-semibold text-gray-700 block mb-2">Select Phase Times:</label>
+                <div class="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3 bg-gray-50">
+                    <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
+                        <input type="checkbox" name="phaseTime" value="All Phases" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
+                        <span class="font-bold">All Phases</span>
+                    </label>
+                    ${sortedPhaseTimes.map(time => `
+                        <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" name="phaseTime" value="${time}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
+                            <span>${time}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="pt-6 flex justify-end gap-3 border-t">
+                <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm">Cancel</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="modal-download-master-pdf" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 flex items-center gap-1.5 text-sm">
+                        ${ICONS.Printer} PDF
+                    </button>
+                    <button type="button" id="modal-download-master-excel" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 flex items-center gap-1.5 text-sm">
+                        ${ICONS.Excel} Excel
+                    </button>
+                </div>
+            </div>
+        </form>
+    `;
+
+    state.modal = {
+        visible: true,
+        title: 'Download Master Arrangement',
+        content: content
+    };
+    render(); // Call render to display the modal
+
+    // Add logic to handle "All Phases" checkbox AFTER the modal is rendered
+    // Use setTimeout to ensure the elements exist in the DOM
+    setTimeout(() => {
+        const allPhasesCheckbox = document.querySelector('#master-arrangement-options-form input[value="All Phases"]');
+        const individualPhaseCheckboxes = document.querySelectorAll('#master-arrangement-options-form input[name="phaseTime"]:not([value="All Phases"])');
+
+        if (!allPhasesCheckbox) return; // Exit if elements not found
+
+        allPhasesCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            individualPhaseCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+                cb.disabled = isChecked;
+            });
+        });
+
+        individualPhaseCheckboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                 if (!cb.checked) {
+                     allPhasesCheckbox.checked = false;
+                     allPhasesCheckbox.disabled = false; // Enable "All Phases" if any individual is unchecked
+                 } else {
+                     // Check if all individuals are checked
+                     const allChecked = Array.from(individualPhaseCheckboxes).every(iCb => iCb.checked);
+                     if(allChecked) {
+                         allPhasesCheckbox.checked = true;
+                         // Keep individuals enabled, but check "All Phases"
+                         // individualPhaseCheckboxes.forEach(iCb => iCb.disabled = true);
+                     }
+                 }
+            });
+        });
+    }, 0); // Run after current execution stack clears
+}
+// --- END ADDED FUNCTION ---
 
 function init() {
     loadState(); // Load state first
@@ -2258,5 +2452,4 @@ function init() {
     });
 }
 window.addEventListener('DOMContentLoaded', init);
-
 

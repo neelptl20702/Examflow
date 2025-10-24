@@ -13,8 +13,9 @@ const ICONS = {
     X: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
     XClose: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
     Users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-    // --- UPDATED EXCEL ICON --- using Font Awesome style SVG
-    Excel: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" class="text-green-600" viewBox="0 0 16 16"><path d="M5.18 4.616a.5.5 0 0 1 .704.064L8 7.219l2.116-2.54a.5.5 0 0 1 .768-.064L13.484 7 11.82 9.26a.5.5 0 0 1-.768.064L8 6.781l-2.116 2.54a.5.5 0 0 1-.768-.064L2.516 7l1.664-2.384z"/><path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4zm0 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/></svg>`
+    // --- UPDATED EXCEL ICON ---
+    Excel: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-excel-fill text-green-700" viewBox="0 0 16 16"> <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0M9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1M5.884 6.68 8 9.219l2.116-2.54a.5.5 0 1 1 .768.641L8.651 10l2.233 2.68a.5.5 0 0 1-.768.64L8 10.781l-2.116 2.54a.5.5 0 0 1-.768-.641L7.349 10 5.116 7.32a.5.5 0 1 1 .768-.64"/> </svg>`
+    // --- END UPDATED EXCEL ICON ---
 };
 
 // --- UI UTILITIES ---
@@ -203,7 +204,7 @@ function renderStep3_Scheduler() {
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                             <span>Answer Sheet Issue Sheet</span>
                         </button>
-                        
+
                         <!-- NEW SPLIT-BUTTON WRAPPER -->
                         <div class="relative inline-block text-left">
                             <!-- Main Button Group -->
@@ -219,7 +220,7 @@ function renderStep3_Scheduler() {
                                     </svg>
                                 </button>
                             </div>
-    
+
                             <!-- Dropdown Menu -->
                             <div id="timetable-menu" class="split-button-menu absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-30">
                                 <div class="py-1" role="menu" aria-orientation="vertical">
@@ -480,7 +481,7 @@ function renderStep4_AllotmentAndRooms() {
                                     </div>
                                     <div class="md:col-span-3">
                                         <label class="text-xs font-medium text-gray-600">Seat Range</label>
-                                        <input type="text" name="seatRange" required placeholder="e.g., A1-A20" class="block w-full p-2 border rounded-md text-sm mt-1">
+                                        <input type="text" name="seatRange" required placeholder="e.g., A1-A20 or detailed numbers" class="block w-full p-2 border rounded-md text-sm mt-1">
                                     </div>
                                     <div class="md:col-span-2">
                                         <label class="text-xs font-medium text-gray-600">Students</label>
@@ -602,11 +603,26 @@ function renderAllotmentBlocksForPhase(phaseKey) {
     const sortedRooms = Object.keys(blocksByRoom).sort((a, b) => {
         const blockA = blocksByRoom[a][0].blockNo || '';
         const blockB = blocksByRoom[b][0].blockNo || '';
-        return blockA.localeCompare(blockB, undefined, { numeric: true });
+        // Sort numerically if possible, otherwise alphabetically
+        const numA = parseInt(blockA);
+        const numB = parseInt(blockB);
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+        }
+        return blockA.localeCompare(blockB);
     });
 
     for (const roomName of sortedRooms) {
-        const roomBlocks = blocksByRoom[roomName];
+        // Sort blocks within the room numerically by block number
+        const roomBlocks = blocksByRoom[roomName].sort((a, b) => {
+             const numA = parseInt(a.blockNo || '0');
+             const numB = parseInt(b.blockNo || '0');
+             if (!isNaN(numA) && !isNaN(numB)) {
+                 return numA - numB;
+             }
+             return (a.blockNo || '').localeCompare(b.blockNo || '');
+        });
+
         const roomData = state.roomsMaster.find(r => r.name === roomName);
         const roomCapacity = roomData ? roomData.capacity : 0;
         let totalStudentsInRoom = 0;
@@ -616,9 +632,9 @@ function renderAllotmentBlocksForPhase(phaseKey) {
             totalStudentsInRoom += parseInt(block.studentCount || 0);
             let subjectText = '<span class="text-red-600 font-semibold">N/A - Assign Subject</span>'; // Default text for empty blocks
             if (subject) {
-                subjectText = `${subject.SubjectName} (${subject.Branch})`;
-                if (block.specialization) {
-                    subjectText += ` - ${block.specialization}`;
+                subjectText = `${subject.SubjectName} (${subject.Branch} - ${subject.Semester})`; // Include Semester
+                if (block.specialization && block.specialization !== 'ALL COURSES') { // Only show if not 'ALL COURSES'
+                    subjectText += ` (${block.specialization})`;
                 }
                 if (block.isDetained) {
                     subjectText += ` (Detained)`;
@@ -707,7 +723,7 @@ function renderStep5_DutyAssignment() {
                             <button id="view-load-matrix-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center gap-2 text-sm">
                                 ${ICONS.Users}<span>View Load Matrix</span>
                             </button>
-                            
+
                             <!-- NEW SPLIT-BUTTON WRAPPER -->
                             <div class="relative inline-block text-left">
                                 <!-- Main Button Group -->
@@ -722,7 +738,7 @@ function renderStep5_DutyAssignment() {
                                         </svg>
                                     </button>
                                 </div>
-    
+
                                 <!-- Dropdown Menu -->
                                 <div id="duty-sheet-menu" class="split-button-menu absolute right-0 mt-2 w-56 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-30">
                                     <div class="py-1" role="menu" aria-orientation="vertical">
@@ -835,10 +851,14 @@ function renderDutyRoomsForPhase(phaseKey) {
             const subject = state.subjectsMasterList.find(s => s.id == block.subjectId);
             // --- MODIFIED --- Show message if subject is not assigned yet
             if (!subject) return `<div class="p-2 bg-yellow-50 rounded-md border border-yellow-200"><p class="font-bold text-yellow-800">Block ${block.blockNo}: <span class="font-normal text-yellow-700">Subject Not Assigned</span></p></div>`;
-            
+
             let subjectInfo = `${subject.Branch} - ${subject.Semester}`;
-            if (block.specialization) subjectInfo += ` (${block.specialization})`;
-            if (block.isDetained) subjectInfo += ' (Detained)';
+            if (block.specialization && block.specialization !== 'ALL COURSES') { // Only show if not 'ALL COURSES'
+                 subjectInfo += ` (${block.specialization})`;
+            }
+            if (block.isDetained) {
+                 subjectInfo += ' (Detained)';
+            }
             return `
                                     <div class="p-2 bg-gray-50 rounded-md border">
                                         <p class="font-bold text-gray-800">Block ${block.blockNo}: <span class="font-normal">${subject.SubjectName} (${subject.SubjectCode})</span></p>
@@ -1198,7 +1218,7 @@ function showSeatingPdfOptionsModal() {
 
     state.modal = {
         visible: true,
-        title: 'Download Seating Arrangement PDF',
+        title: 'Download Phase Seating PDF', // Changed title
         content
     };
     render();
@@ -1467,58 +1487,235 @@ function showEditBlockModal(phaseKey, blockId) {
     render();
 }
 
-function handleSubjectChange(subjectId, form) {
-    const subject = state.subjectsMasterList.find(s => s.id == subjectId);
-    const specContainer = form.querySelector('.specialization-container');
+// --- MODAL & DYNAMIC HELPERS ---
+// (notify, renderModal, etc remain the same)
 
-    if (specContainer) { // Check if the container exists
-        if (subject && subject.Specialization && subject.Specialization.length > 0) {
-            specContainer.innerHTML = `
-                        <label class="text-xs font-medium text-gray-600">Specialization</label>
-                        <select name="specialization" class="block w-full p-2 border rounded-md text-sm mt-1">
-                            <option value="ALL COURSES">ALL COURSES (Remedial/Combined)</option>
-                            ${subject.Specialization.map(spec => `<option value="${spec}">${spec}</option>`).join('')}
-                        </select>
-                    `;
-        } else {
-            specContainer.innerHTML = ''; // Clear if no specializations
+// --- ADDED --- Modal for Master Arrangement Download Options
+function showMasterArrangementModal() {
+    // Get unique phase times from schedule
+    const phaseTimes = new Set();
+    Object.values(state.schedule).flat().forEach(phase => {
+        phaseTimes.add(`${formatTime12Hour(phase.startTime)} - ${formatTime12Hour(phase.endTime)}`);
+    });
+    const sortedPhaseTimes = [...phaseTimes].sort();
+
+    if (sortedPhaseTimes.length === 0) {
+        notify('No exam phases scheduled yet. Cannot generate master arrangement.', 'warning');
+        return;
+    }
+
+    const content = `
+        <form id="master-arrangement-options-form" class="p-6 space-y-4">
+            <p class="text-sm text-gray-600">Select the phase time(s) to include in the master arrangement. The report will include all scheduled days for the selected times.</p>
+            <div>
+                <label class="font-semibold text-gray-700 block mb-2">Select Phase Times:</label>
+                <div class="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3 bg-gray-50">
+                    <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
+                        <input type="checkbox" name="phaseTime" value="All Phases" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
+                        <span class="font-bold">All Phases</span>
+                    </label>
+                    ${sortedPhaseTimes.map(time => `
+                        <label class="flex items-center p-2 rounded hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" name="phaseTime" value="${time}" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2">
+                            <span>${time}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="pt-6 flex justify-end gap-3 border-t">
+                <button type="button" id="modal-cancel-btn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 text-sm">Cancel</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="modal-download-master-pdf" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 flex items-center gap-1.5 text-sm">
+                        ${ICONS.Printer} PDF
+                    </button>
+                    <button type="button" id="modal-download-master-excel" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 flex items-center gap-1.5 text-sm">
+                        ${ICONS.Excel} Excel
+                    </button>
+                </div>
+            </div>
+        </form>
+    `;
+
+    state.modal = {
+        visible: true,
+        title: 'Download Master Arrangement',
+        content: content
+    };
+    render(); // Call render to display the modal
+
+    // Add logic to handle "All Phases" checkbox AFTER the modal is rendered
+    // Use setTimeout to ensure the elements exist in the DOM
+    setTimeout(() => {
+        const allPhasesCheckbox = document.querySelector('#master-arrangement-options-form input[value="All Phases"]');
+        const individualPhaseCheckboxes = document.querySelectorAll('#master-arrangement-options-form input[name="phaseTime"]:not([value="All Phases"])');
+
+        if (!allPhasesCheckbox) return; // Exit if elements not found
+
+        allPhasesCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            individualPhaseCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+                cb.disabled = isChecked;
+            });
+        });
+
+        individualPhaseCheckboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                 if (!cb.checked) {
+                     allPhasesCheckbox.checked = false;
+                     allPhasesCheckbox.disabled = false; // Enable "All Phases" if any individual is unchecked
+                 } else {
+                     // Check if all individuals are checked
+                     const allChecked = Array.from(individualPhaseCheckboxes).every(iCb => iCb.checked);
+                     if(allChecked) {
+                         allPhasesCheckbox.checked = true;
+                         // Keep individuals enabled, but check "All Phases"
+                         // individualPhaseCheckboxes.forEach(iCb => iCb.disabled = true); // Commented out to allow unchecking individual even if All is checked
+                     }
+                 }
+            });
+        });
+    }, 0); // Run after current execution stack clears
+}
+
+// ... rest of the functions (init, listeners, etc.) ...
+// (Make sure the existing renderModal, notify, etc. functions are present)
+// The handleGlobalClick needs the call:
+// if (e.target.closest('#download-master-arrangement')) {
+//     showMasterArrangementModal(); // Make sure this line exists and is correct
+// }
+
+// --- INITIALIZATION ---
+function init() {
+    loadState(); // Load state first
+    $('#university-name').textContent = UNIVERSITY_NAME;
+    $('#school-name').textContent = SCHOOL_NAME;
+    if (!state.examName) {
+        updateExamName();
+    }
+    render();
+
+    const appContainer = $('#app-container');
+    appContainer.addEventListener('click', handleGlobalClick);
+    appContainer.addEventListener('change', handleGlobalChange);
+    appContainer.addEventListener('submit', handleGlobalSubmit);
+
+    const loadInput = document.getElementById('load-from-file-input');
+    loadInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const loadedState = JSON.parse(e.target.result);
+                if (loadedState && loadedState.examDetails && loadedState.currentStep) {
+                    showConfirmationModal(
+                        'Load Data from File?',
+                        'This will overwrite all current data. Are you sure you want to continue?',
+                        () => {
+                            Object.assign(state, loadedState);
+                            if (state.scheduler && state.scheduler.calendarDate) {
+                                state.scheduler.calendarDate = new Date(state.scheduler.calendarDate);
+                            }
+                            saveState();
+                            notify('Data loaded successfully!', 'success');
+                            render();
+                        }
+                    );
+                } else {
+                    throw new Error('Invalid file format.');
+                }
+            } catch (error) {
+                console.error('Failed to load state from file:', error);
+                notify('Could not load data. The file may be corrupt or invalid.', 'error');
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    appContainer.addEventListener('input', e => {
+        if (e.target.id === 'exam-name') {
+            state.examName = e.target.value;
+            saveState();
+        } else if (e.target.id === 'scheduler-search') {
+            state.scheduler.searchTerm = e.target.value;
+            const container = $('#unscheduled-list');
+            if (container) container.innerHTML = renderUnscheduledSubjectsList();
+        } else if (e.target.id === 'faculty-search') {
+            state.facultySearchTerm = e.target.value;
+            const container = $('#faculty-list');
+            if (container) container.innerHTML = renderFacultyList();
         }
-    }
+    });
+
+    // Drag and Drop listeners
+    appContainer.addEventListener('dragstart', e => {
+        const draggable = e.target.closest('.draggable');
+        if (draggable) {
+            state.draggedItemId = draggable.dataset.id;
+            state.draggedItemType = draggable.dataset.type;
+            e.target.style.opacity = '0.5';
+        }
+    });
+    appContainer.addEventListener('dragend', e => {
+        const draggable = e.target.closest('.draggable');
+        if (draggable) {
+            e.target.style.opacity = '1';
+        }
+        state.draggedItemId = null;
+        state.draggedItemType = null;
+    });
+    appContainer.addEventListener('dragover', e => {
+        const dropZone = e.target.closest('.drop-zone');
+        if (dropZone && dropZone.dataset.type === state.draggedItemType) {
+            e.preventDefault();
+            dropZone.classList.add('drop-zone-active');
+        }
+    });
+    appContainer.addEventListener('dragleave', e => {
+        const dropZone = e.target.closest('.drop-zone');
+        if (dropZone) {
+            dropZone.classList.remove('drop-zone-active');
+        }
+    });
+    appContainer.addEventListener('drop', e => {
+        e.preventDefault();
+        const dropZone = e.target.closest('.drop-zone');
+        if (!dropZone || !state.draggedItemId || dropZone.dataset.type !== state.draggedItemType) return;
+
+        dropZone.classList.remove('drop-zone-active');
+
+        dropZone.classList.add('drop-zone-success');
+        setTimeout(() => {
+            dropZone.classList.remove('drop-zone-success');
+        }, 500);
+
+
+        if (state.draggedItemType === 'subject') {
+            const { date, phaseId } = dropZone.dataset;
+            addSubjectToPhase(state.draggedItemId, date, phaseId);
+        } else if (state.draggedItemType === 'faculty') {
+            const { phaseKey, room } = dropZone.dataset;
+            const faculty = state.facultyMaster.find(f => f.id === state.draggedItemId);
+            if (!faculty) return;
+
+            const assignedInPhase = Object.values(state.dutyAssignments[phaseKey] || {}).flat();
+            if (assignedInPhase.includes(faculty.name)) {
+                notify(`${faculty.name} is already assigned a duty in this time slot.`, 'error');
+                return;
+            }
+            if (!state.dutyAssignments[phaseKey]) state.dutyAssignments[phaseKey] = {};
+            if (!state.dutyAssignments[phaseKey][room]) state.dutyAssignments[phaseKey][room] = [];
+            if (!state.dutyAssignments[phaseKey][room].includes(faculty.name)) {
+                state.dutyAssignments[phaseKey][room].push(faculty.name);
+            }
+            render();
+            saveState();
+        }
+    });
 }
-
-function renderModal() {
-    const container = $('#modal-container');
-    if (!state.modal.visible) { container.innerHTML = ''; return; }
-    const maxWidth = state.modal.title.includes('Timetable') ? 'max-w-5xl' : (state.modal.title.includes('Duty Sheet') ? 'max-w-7xl' : (state.modal.title.includes('Master Arrangement') ? 'max-w-lg' : 'max-w-2xl')); // --- MODIFIED --- Added width for new modal
-    container.innerHTML = `<div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 z-[99] flex justify-center items-center p-4 transition-opacity"><div class="bg-white rounded-lg shadow-xl p-0 w-full ${maxWidth} max-h-[90vh] flex flex-col scale-95 animate-modal-in"><div class="flex justify-between items-center p-5 border-b"><h3 class="text-xl font-bold text-gray-800">${state.modal.title}</h3><button id="modal-close-btn" class="p-2 rounded-full hover:bg-gray-200">${ICONS.XClose}</button></div><div class="overflow-auto">${state.modal.content}</div></div></div>`;
-
-    // Add event listener for modal search after it's rendered
-    if (state.modal.title.includes('Assign Faculty')) {
-        const searchInput = $('#modal-faculty-search');
-        const facultyListContainer = $('#modal-faculty-list');
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const allFacultyLabels = facultyListContainer.querySelectorAll('label');
-            allFacultyLabels.forEach(label => {
-                const name = label.querySelector('span').textContent.toLowerCase();
-                label.style.display = name.includes(searchTerm) ? 'flex' : 'none';
-            });
-        });
-    } else if (state.modal.title.includes('Assign Subjects')) {
-        const searchInput = $('#modal-subject-search');
-        const subjectListContainer = $('#modal-subject-list');
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const allSubjectLabels = subjectListContainer.querySelectorAll('label');
-            allSubjectLabels.forEach(label => {
-                // --- BUG FIX ---
-                // Search the entire label's text content, not just a span
-                const name = label.textContent.toLowerCase();
-                // --- END BUG FIX ---
-                label.style.display = name.includes(searchTerm) ? 'flex' : 'none';
-            });
-        });
-    }
-}
-
+window.addEventListener('DOMContentLoaded', init);
 

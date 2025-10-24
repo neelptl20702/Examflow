@@ -24,7 +24,7 @@ let state = {
     },
     facultySearchTerm: '',
     draggedItemId: null,
-    draggedItemType: null,
+    draggedItemType: null,a
     modal: { visible: false, title: '', content: '' }
 };
 

@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body { 
+    font-family: 'Inter', sans-serif; 
+}
+
+.draggable { 
+    touch-action: none; 
+}
+
+.draggable:active {
+    cursor: grabbing;
+    z-index: 50;
+    transform: scale(1.05);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.drop-zone-active {
+    background-color: #e0f2fe; /* light-blue-100 */
+    border-color: #3b82f6; /* blue-500 */
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+.drop-zone-success {
+    background-color: #d1fae5; /* green-100 */
+    border-color: #10b981; /* green-500 */
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.btn-toggle-active {
+    background-color: #c53030; /* A shade of red from the logo */
+    color: white;
+    border-color: #c53030;
+}
+
+[draggable="true"] { 
+    user-select: none; 
+}
+
+.page-break-after { 
+    page-break-after: always; 
+}
+
+.animate-modal-in {
+    animation: scaleIn 0.3s cubic-bezier(0.165, 0.840, 0.440, 1.000) forwards;
+}
+
+@keyframes scaleIn {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- ADD THESE NEW STYLES --- */
+.split-button-menu {
+    transition: all 0.2s cubic-bezier(0.165, 0.840, 0.440, 1.000);
+    transform-origin: top right;
+    transform: scale(0.95) translateY(-10px);
+    opacity: 0;
+    pointer-events: none;
+}
+.split-button-menu.open {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+/* --- END OF NEW STYLES --- */
+
+
+/* Mobile-specific UI changes */
+@media (max-width: 768px) {
+    .desktop-only { display: none; }
+}
+@media (min-width: 769px) {
+    .mobile-only { display: none; }
+}
